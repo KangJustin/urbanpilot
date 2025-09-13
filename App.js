@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
 import './index.css';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 // Simple icon components
 const MapIcon = () => (
@@ -25,12 +35,19 @@ const BarChartIcon = () => (
   </svg>
 );
 
-const MapPinIcon = () => (
-  <svg className="w-16 h-16 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-    <circle cx="12" cy="10" r="3"/>
-  </svg>
-);
+// Component to update map view based on active overlays
+function MapUpdater({ activeOverlays, currentScenario }) {
+  const map = useMap();
+  
+  // You can add logic here to update map layers based on activeOverlays
+  // For now, we'll just log the changes
+  React.useEffect(() => {
+    console.log('Active overlays:', activeOverlays);
+    console.log('Current scenario:', currentScenario);
+  }, [activeOverlays, currentScenario]);
+  
+  return null;
+}
 
 function App() {
   const [currentScenario, setCurrentScenario] = useState('current');
@@ -90,6 +107,34 @@ function App() {
 
   // Get current scenario data
   const currentScenarioData = scenarios.find(s => s.id === currentScenario) || scenarios[0];
+
+  // Sample data points for the map
+  const mapMarkers = [
+    {
+      id: 1,
+      position: [42.3601, -71.0589], // Boston coordinates
+      title: "Climate Pavilion Alpha",
+      type: "climate",
+      efficiency: "high"
+    },
+    {
+      id: 2,
+      position: [42.3584, -71.0598],
+      title: "Green Space Beta",
+      type: "green",
+      efficiency: "medium"
+    },
+    {
+      id: 3,
+      position: [42.3611, -71.0571],
+      title: "Urban Development Gamma",
+      type: "building",
+      efficiency: "low"
+    }
+  ];
+
+  // Debug: Log when component renders
+  console.log('App component rendering, currentScenario:', currentScenario);
 
   return (
     <div className="h-screen flex bg-gray-50">
@@ -240,20 +285,48 @@ function App() {
       </div>
 
       {/* Main Map Area */}
-      <div className="flex-1 relative">
-        <div className="h-full bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center">
-          <div className="text-center">
-            <MapPinIcon />
-            <h2 className="text-2xl font-bold text-gray-600 mb-2">Interactive Map Coming Soon</h2>
-            <p className="text-gray-500 mb-2">Map visualization will be displayed here</p>
-            <p className="text-sm text-gray-400 mb-1">
-              Current scenario: <span className="font-medium">{currentScenarioData.label}</span>
-            </p>
-            <p className="text-sm text-gray-400">
-              Active overlays: <span className="font-medium">{activeOverlays.join(', ') || 'none'}</span>
-            </p>
-          </div>
+      <div className="flex-1 relative" style={{ minHeight: '400px' }}>
+        {/* Debug: Test if this div shows up */}
+        <div style={{ 
+          position: 'absolute', 
+          top: '10px', 
+          left: '10px', 
+          background: 'red', 
+          color: 'white', 
+          padding: '5px', 
+          zIndex: 1000 
+        }}>
+          Map Container Test
         </div>
+        
+        <MapContainer
+          center={[42.3601, -71.0589]} // Boston coordinates
+          zoom={13}
+          style={{ height: '100%', width: '100%' }}
+          className="z-0"
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          
+          {/* Map updater component */}
+          <MapUpdater activeOverlays={activeOverlays} currentScenario={currentScenario} />
+          
+          {/* Sample markers */}
+          {mapMarkers.map(marker => (
+            <Marker key={marker.id} position={marker.position}>
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-semibold text-gray-800">{marker.title}</h3>
+                  <p className="text-sm text-gray-600">Type: {marker.type}</p>
+                  <p className="text-sm text-gray-600">Efficiency: {marker.efficiency}</p>
+                  <p className="text-sm text-gray-600">Scenario: {currentScenarioData.label}</p>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
 
         {/* Legend */}
         <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10">
