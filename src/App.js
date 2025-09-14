@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './index.css';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -46,10 +45,9 @@ const MapPinIcon = () => (
 function MapOverlays({ activeOverlays, currentScenario, mapCenter }) {
   const map = useMap();
   
-  // Generate overlay data based on map center and scenario
   const getScenarioData = () => {
     const [centerLat, centerLng] = mapCenter || [42.3601, -71.0589];
-    const offset = 0.005; // Smaller offset for better clustering around center
+    const offset = 0.005;
     
     switch (currentScenario) {
       case 'current':
@@ -116,15 +114,6 @@ function MapOverlays({ activeOverlays, currentScenario, mapCenter }) {
 
   const { heatZones, greenSpaces, trafficZones } = getScenarioData();
 
-  // Debug logging
-  useEffect(() => {
-    console.log('MapOverlays - Active overlays:', activeOverlays);
-    console.log('MapOverlays - Current scenario:', currentScenario);
-    console.log('MapOverlays - Heat zones:', heatZones.length);
-    console.log('MapOverlays - Green spaces:', greenSpaces.length);
-    console.log('MapOverlays - Traffic zones:', trafficZones.length);
-  }, [activeOverlays, currentScenario, heatZones, greenSpaces, trafficZones]);
-
   return (
     <>
       {/* Heat Island Overlay */}
@@ -178,287 +167,298 @@ function MapOverlays({ activeOverlays, currentScenario, mapCenter }) {
   );
 }
 
-// Custom Location Form Component
-function CustomLocationForm({ onSubmit }) {
-  const [formData, setFormData] = useState({
-    title: '',
-    type: 'building',
-    efficiency: 'medium',
-    lat: '',
-    lng: ''
+// Location Optimization Algorithm
+const optimizeLocations = (projectType, projectSize, mapCenter, optimizationFactors) => {
+  const [centerLat, centerLng] = mapCenter;
+  const searchRadius = 0.01; // ~1km radius
+  const candidateLocations = [];
+
+  // Generate candidate locations in a grid pattern
+  for (let i = -5; i <= 5; i++) {
+    for (let j = -5; j <= 5; j++) {
+      const lat = centerLat + (i * searchRadius / 5);
+      const lng = centerLng + (j * searchRadius / 5);
+      
+      candidateLocations.push({
+        id: `candidate-${i}-${j}`,
+        lat,
+        lng,
+        position: [lat, lng]
+      });
+    }
+  }
+
+  // Evaluate each candidate location
+  const evaluatedLocations = candidateLocations.map(location => {
+    const scores = evaluateLocation(location, projectType, projectSize, mapCenter, optimizationFactors);
+    return {
+      ...location,
+      ...scores,
+      overallScore: calculateOverallScore(scores, optimizationFactors)
+    };
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formData.title && formData.lat && formData.lng) {
-      onSubmit(formData);
-      setFormData({ title: '', type: 'building', efficiency: 'medium', lat: '', lng: '' });
-    }
+  // Sort by overall score and return top recommendations
+  return evaluatedLocations
+    .sort((a, b) => b.overallScore - a.overallScore)
+    .slice(0, 5)
+    .map((location, index) => ({
+      ...location,
+      rank: index + 1,
+      title: `Recommended Site ${index + 1}`,
+      type: getMarkerType(location.overallScore),
+      efficiency: getEfficiencyRating(location.overallScore)
+    }));
+};
+
+// Evaluate a single location based on multiple factors
+const evaluateLocation = (location, projectType, projectSize, mapCenter, optimizationFactors) => {
+  const [centerLat, centerLng] = mapCenter;
+  const distance = Math.sqrt(
+    Math.pow(location.lat - centerLat, 2) + Math.pow(location.lng - centerLng, 2)
+  );
+
+  // Environmental factors
+  const environmentalScore = calculateEnvironmentalScore(location, projectType, distance);
+  
+  // Social factors
+  const socialScore = calculateSocialScore(location, projectType, distance);
+  
+  // Infrastructure factors
+  const infrastructureScore = calculateInfrastructureScore(location, projectType, distance);
+  
+  // Economic factors
+  const economicScore = calculateEconomicScore(location, projectType, projectSize, distance);
+
+  return {
+    environmentalScore,
+    socialScore,
+    infrastructureScore,
+    economicScore,
+    distance
   };
+};
+
+// Calculate environmental impact score
+const calculateEnvironmentalScore = (location, projectType, distance) => {
+  let score = 50; // Base score
+
+  // Distance from heat islands (closer is better for parks, worse for buildings)
+  const heatFactor = Math.sin(location.lat * 50) * Math.cos(location.lng * 50);
+  if (projectType === 'park') {
+    score += heatFactor * 30; // Parks should be in hot areas to provide cooling
+  } else {
+    score -= heatFactor * 15; // Buildings should avoid hottest areas
+  }
+
+  // Air quality considerations
+  const airQualityFactor = Math.cos(location.lat * 40) * Math.sin(location.lng * 40);
+  if (projectType === 'park') {
+    score += airQualityFactor * 25; // Parks improve air quality where it's poor
+  } else if (projectType === 'hospital') {
+    score -= airQualityFactor * 20; // Hospitals need clean air
+  }
+
+  // Water runoff considerations
+  const drainageFactor = Math.sin(location.lat * 30 + location.lng * 30);
+  if (projectType === 'park') {
+    score += drainageFactor * 20; // Parks help with water management
+  }
+
+  return Math.max(0, Math.min(100, score));
+};
+
+// Calculate social impact score
+const calculateSocialScore = (location, projectType, distance) => {
+  let score = 50; // Base score
+
+  // Population density simulation
+  const populationDensity = Math.abs(Math.sin(location.lat * 60) * Math.cos(location.lng * 60)) * 100;
+  
+  if (projectType === 'park' || projectType === 'school') {
+    score += populationDensity * 0.3; // Higher density areas need more parks/schools
+  } else if (projectType === 'residential') {
+    score -= populationDensity * 0.4; // Avoid displacing people in dense areas
+  }
+
+  // Accessibility to existing amenities
+  const amenityAccess = Math.cos(location.lat * 45) * Math.sin(location.lng * 45) * 50 + 50;
+  score += amenityAccess * 0.2;
+
+  // Community displacement risk
+  const displacementRisk = Math.abs(Math.sin(location.lat * 70)) * 50;
+  if (projectType === 'commercial' || projectType === 'residential') {
+    score -= displacementRisk * 0.8; // Minimize displacement for development projects
+  }
+
+  return Math.max(0, Math.min(100, score));
+};
+
+// Calculate infrastructure readiness score
+const calculateInfrastructureScore = (location, projectType, distance) => {
+  let score = 50; // Base score
+
+  // Transportation access simulation
+  const transportAccess = Math.abs(Math.cos(location.lat * 35) * Math.sin(location.lng * 35)) * 100;
+  
+  if (projectType === 'transport') {
+    score += transportAccess * 0.5; // Transport hubs need good existing access
+  } else if (projectType === 'hospital' || projectType === 'school') {
+    score += transportAccess * 0.3; // Essential services need accessibility
+  }
+
+  // Traffic impact
+  const trafficDensity = Math.abs(Math.sin(location.lat * 55) * Math.cos(location.lng * 55)) * 100;
+  if (projectType !== 'park') {
+    score -= trafficDensity * 0.3; // Most projects should minimize traffic impact
+  }
+
+  // Utility availability
+  const utilityAccess = Math.cos(location.lat * 25 + location.lng * 25) * 50 + 50;
+  if (projectType === 'residential' || projectType === 'commercial') {
+    score += utilityAccess * 0.4;
+  }
+
+  return Math.max(0, Math.min(100, score));
+};
+
+// Calculate economic feasibility score
+const calculateEconomicScore = (location, projectType, projectSize, distance) => {
+  let score = 50; // Base score
+
+  // Land cost simulation (inverse of population density)
+  const landCost = Math.abs(Math.sin(location.lat * 60) * Math.cos(location.lng * 60)) * 100;
+  score -= landCost * 0.3; // Lower land costs are better
+
+  // Development cost based on distance from center
+  const developmentCost = distance * 1000; // Distance-based cost
+  score -= developmentCost * 0.1;
+
+  // Size efficiency
+  const sizeEfficiency = Math.min(100, (parseInt(projectSize) || 500) / 10);
+  score += sizeEfficiency * 0.1;
+
+  // Economic impact potential
+  if (projectType === 'commercial') {
+    const commercialPotential = Math.cos(location.lat * 40) * Math.sin(location.lng * 40) * 50 + 50;
+    score += commercialPotential * 0.3;
+  }
+
+  return Math.max(0, Math.min(100, score));
+};
+
+// Calculate overall score based on optimization factors
+const calculateOverallScore = (scores, factors) => {
+  const weights = {
+    environmental: parseFloat(factors.environmental === 'high' ? 0.4 : factors.environmental === 'medium' ? 0.25 : 0.1),
+    social: parseFloat(factors.social === 'high' ? 0.4 : factors.social === 'medium' ? 0.25 : 0.1),
+    infrastructure: parseFloat(factors.infrastructure === 'high' ? 0.4 : factors.infrastructure === 'medium' ? 0.25 : 0.1),
+    economic: parseFloat(factors.economic === 'high' ? 0.4 : factors.economic === 'medium' ? 0.25 : 0.1)
+  };
+
+  const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 p-4 bg-gray-50 rounded-lg">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Location Name
-        </label>
-        <input
-          type="text"
-          value={formData.title}
-          onChange={(e) => setFormData({...formData, title: e.target.value})}
-          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-          placeholder="e.g., Central Park"
-          required
-        />
-      </div>
-      
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Type
-        </label>
-        <select
-          value={formData.type}
-          onChange={(e) => setFormData({...formData, type: e.target.value})}
-          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="building">Building</option>
-          <option value="green">Green Space</option>
-          <option value="climate">Climate Pavilion</option>
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Efficiency
-        </label>
-        <select
-          value={formData.efficiency}
-          onChange={(e) => setFormData({...formData, efficiency: e.target.value})}
-          className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Latitude
-          </label>
-          <input
-            type="number"
-            step="any"
-            value={formData.lat}
-            onChange={(e) => setFormData({...formData, lat: e.target.value})}
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-            placeholder="40.7128"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Longitude
-          </label>
-          <input
-            type="number"
-            step="any"
-            value={formData.lng}
-            onChange={(e) => setFormData({...formData, lng: e.target.value})}
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-            placeholder="-74.0060"
-            required
-          />
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-      >
-        Add Location
-      </button>
-    </form>
+    (scores.environmentalScore * weights.environmental +
+     scores.socialScore * weights.social +
+     scores.infrastructureScore * weights.infrastructure +
+     scores.economicScore * weights.economic) / totalWeight
   );
-}
+};
+
+// Helper functions
+const getMarkerType = (score) => {
+  if (score >= 80) return 'excellent';
+  if (score >= 60) return 'good';
+  if (score >= 40) return 'fair';
+  return 'poor';
+};
+
+const getEfficiencyRating = (score) => {
+  if (score >= 75) return 'high';
+  if (score >= 50) return 'medium';
+  return 'low';
+};
 
 function App() {
+  // Optimization state
+  const [projectType, setProjectType] = useState('park');
+  const [projectSize, setProjectSize] = useState('');
+  const [optimizationFactors, setOptimizationFactors] = useState({
+    environmental: 'high',
+    social: 'high', 
+    infrastructure: 'medium',
+    economic: 'medium'
+  });
+  const [recommendedSites, setRecommendedSites] = useState([]);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  
+  // Existing state
   const [currentScenario, setCurrentScenario] = useState('current');
   const [activeOverlays, setActiveOverlays] = useState(['heat', 'green']);
-  const [selectedLocation, setSelectedLocation] = useState('boston');
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [customLocations, setCustomLocations] = useState([]);
   const [showLocationForm, setShowLocationForm] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [mapCenter, setMapCenter] = useState([42.3601, -71.0589]);
+  const [mapZoom, setMapZoom] = useState(13);
 
-  const handleOverlayToggle = (overlayId) => {
-    setActiveOverlays(prev => 
-      prev.includes(overlayId)
-        ? prev.filter(id => id !== overlayId)
-        : [...prev, overlayId]
-    );
-  };
-
-  // Predefined city locations
-  const cityLocations = {
-    boston: {
-      name: 'Boston, MA',
-      center: [42.3601, -71.0589],
-      zoom: 13,
-      markers: [
-        { id: 1, position: [42.3601, -71.0589], title: "Climate Pavilion Alpha", type: "climate", efficiency: "high" },
-        { id: 2, position: [42.3584, -71.0598], title: "Green Space Beta", type: "green", efficiency: "medium" },
-        { id: 3, position: [42.3611, -71.0571], title: "Urban Development Gamma", type: "building", efficiency: "low" }
-      ]
-    },
-    newyork: {
-      name: 'New York, NY',
-      center: [40.7128, -74.0060],
-      zoom: 12,
-      markers: [
-        { id: 4, position: [40.7589, -73.9851], title: "Central Park Green Zone", type: "green", efficiency: "high" },
-        { id: 5, position: [40.7505, -73.9934], title: "Times Square District", type: "building", efficiency: "medium" },
-        { id: 6, position: [40.7614, -73.9776], title: "Climate Innovation Hub", type: "climate", efficiency: "high" }
-      ]
-    },
-    sanfrancisco: {
-      name: 'San Francisco, CA',
-      center: [37.7749, -122.4194],
-      zoom: 13,
-      markers: [
-        { id: 7, position: [37.7849, -122.4094], title: "Golden Gate Park", type: "green", efficiency: "high" },
-        { id: 8, position: [37.7849, -122.4094], title: "Tech Campus Alpha", type: "climate", efficiency: "high" },
-        { id: 9, position: [37.7849, -122.4094], title: "Downtown Core", type: "building", efficiency: "medium" }
-      ]
-    },
-    london: {
-      name: 'London, UK',
-      center: [51.5074, -0.1278],
-      zoom: 12,
-      markers: [
-        { id: 10, position: [51.5074, -0.1278], title: "Hyde Park Green Space", type: "green", efficiency: "high" },
-        { id: 11, position: [51.5074, -0.1278], title: "Financial District", type: "building", efficiency: "medium" },
-        { id: 12, position: [51.5074, -0.1278], title: "Sustainable Tower", type: "climate", efficiency: "high" }
-      ]
-    },
-    singapore: {
-      name: 'Singapore',
-      center: [1.3521, 103.8198],
-      zoom: 12,
-      markers: [
-        { id: 13, position: [1.3521, 103.8198], title: "Gardens by the Bay", type: "green", efficiency: "high" },
-        { id: 14, position: [1.3521, 103.8198], title: "Marina Bay District", type: "climate", efficiency: "high" },
-        { id: 15, position: [1.3521, 103.8198], title: "CBD Complex", type: "building", efficiency: "medium" }
-      ]
-    }
-  };
-
-  // Get current location data
-  const currentLocationData = cityLocations[selectedLocation] || cityLocations.boston;
-  const allMarkers = [...currentLocationData.markers, ...customLocations];
-
-  const handleLocationChange = (locationId) => {
-    setSelectedLocation(locationId);
-  };
-
-  const handleAddCustomLocation = (newLocation) => {
-    const customLocation = {
-      id: Date.now(),
-      position: [newLocation.lat, newLocation.lng],
-      title: newLocation.title,
-      type: newLocation.type,
-      efficiency: newLocation.efficiency
-    };
-    setCustomLocations(prev => [...prev, customLocation]);
-    setShowLocationForm(false);
-  };
-
-  const handleDeleteCustomLocation = (locationId) => {
-    setCustomLocations(prev => prev.filter(loc => loc.id !== locationId));
-  };
-
-  // Location-specific scenario data
-  const getLocationMetrics = (locationId, scenarioId) => {
-    const baseMetrics = {
-      boston: {
-        current: { green: 18, temp: 85, air: 'C+', energy: 65, walk: 42 },
-        basic: { green: 23, temp: 83, air: 'B-', energy: 72, walk: 58 },
-        climate: { green: 31, temp: 78, air: 'B+', energy: 89, walk: 76 }
-      },
-      newyork: {
-        current: { green: 15, temp: 88, air: 'C', energy: 60, walk: 85 },
-        basic: { green: 20, temp: 86, air: 'C+', energy: 68, walk: 88 },
-        climate: { green: 28, temp: 82, air: 'B', energy: 85, walk: 92 }
-      },
-      sanfrancisco: {
-        current: { green: 22, temp: 75, air: 'B', energy: 70, walk: 78 },
-        basic: { green: 27, temp: 73, air: 'B+', energy: 77, walk: 82 },
-        climate: { green: 35, temp: 70, air: 'A-', energy: 92, walk: 88 }
-      },
-      london: {
-        current: { green: 20, temp: 72, air: 'C+', energy: 62, walk: 75 },
-        basic: { green: 25, temp: 70, air: 'B-', energy: 70, walk: 80 },
-        climate: { green: 33, temp: 67, air: 'B+', energy: 87, walk: 85 }
-      },
-      singapore: {
-        current: { green: 25, temp: 90, air: 'B-', energy: 75, walk: 70 },
-        basic: { green: 30, temp: 88, air: 'B', energy: 82, walk: 75 },
-        climate: { green: 38, temp: 85, air: 'A-', energy: 95, walk: 82 }
-      }
-    };
+  // Handle location optimization
+  const handleOptimizeLocations = async () => {
+    if (!projectSize) return;
     
-    return baseMetrics[locationId]?.[scenarioId] || baseMetrics.boston.current;
+    setIsOptimizing(true);
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const optimizedLocations = optimizeLocations(
+      projectType, 
+      projectSize, 
+      mapCenter, 
+      optimizationFactors
+    );
+    
+    setRecommendedSites(optimizedLocations);
+    setIsOptimizing(false);
   };
 
-  // Scenario data with dynamic metrics
-  const scenarios = [
-    { 
-      id: 'current', 
-      label: 'Current State', 
-      desc: 'Existing conditions',
-      getMetrics: () => getLocationMetrics(selectedLocation, 'current')
-    },
-    { 
-      id: 'basic', 
-      label: 'Basic Development', 
-      desc: 'Standard planning approach',
-      getMetrics: () => getLocationMetrics(selectedLocation, 'basic')
-    },
-    { 
-      id: 'climate', 
-      label: 'Climate-Responsive', 
-      desc: 'Optimized for sustainability',
-      getMetrics: () => getLocationMetrics(selectedLocation, 'climate')
+  // Get all markers to display
+  const allMarkers = [...customLocations, ...recommendedSites];
+
+  // Create custom icon based on marker type
+  const createCustomIcon = (markerType, isRecommended = false) => {
+    let color = '#3B82F6'; // Default blue
+    
+    if (isRecommended) {
+      switch (markerType) {
+        case 'excellent':
+          color = '#10B981'; // Green
+          break;
+        case 'good':
+          color = '#F59E0B'; // Yellow
+          break;
+        case 'fair':
+          color = '#F97316'; // Orange
+          break;
+        case 'poor':
+          color = '#EF4444'; // Red
+          break;
+      }
     }
-  ];
+
+    return L.divIcon({
+      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [12, 12],
+      className: 'custom-marker'
+    });
+  };
 
   // Overlay options
   const overlayOptions = [
-    { 
-      id: 'heat', 
-      label: 'Temperature', 
-      desc: 'Urban heat island effect',
-      color: 'bg-red-500' 
-    },
-    { 
-      id: 'green', 
-      label: 'Green Coverage', 
-      desc: 'Vegetation and parks',
-      color: 'bg-green-500' 
-    },
-    { 
-      id: 'traffic', 
-      label: 'Traffic Flow', 
-      desc: 'Vehicle density patterns',
-      color: 'bg-blue-500' 
-    }
+    { id: 'heat', label: 'Heat Islands', desc: 'Urban temperature zones', color: 'bg-red-500' },
+    { id: 'green', label: 'Green Spaces', desc: 'Parks and vegetation', color: 'bg-green-500' },
+    { id: 'traffic', label: 'Traffic Density', desc: 'Transportation patterns', color: 'bg-blue-500' }
   ];
-
-  // Get current scenario data
-  const currentScenarioData = scenarios.find(s => s.id === currentScenario) || scenarios[0];
-  const currentMetrics = currentScenarioData.getMetrics();
-  const baselineMetrics = scenarios[0].getMetrics(); // Current state for comparison
-
 
   return (
     <div className="h-screen flex bg-gray-50">
@@ -468,217 +468,249 @@ function App() {
           {/* Header */}
           <div>
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Urban Planning Tool
+              Green Planner
             </h1>
             <p className="text-gray-600">
-              Visualize climate-responsive development impacts
+              Find optimal locations for sustainable development
             </p>
           </div>
 
-          {/* Location Search */}
+          {/* Project Configuration */}
           <div>
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
               <MapIcon />
-              <span className="ml-2">Location Search</span>
+              <span className="ml-2">Project Details</span>
             </h3>
             
-            {/* City Selection */}
+            {/* Project Type Selector */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select City
+                What are you building?
               </label>
-              <select
-                value={selectedLocation}
-                onChange={(e) => handleLocationChange(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              <select 
+                value={projectType}
+                onChange={(e) => setProjectType(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
-                {Object.entries(cityLocations).map(([key, city]) => (
-                  <option key={key} value={key}>
-                    {city.name}
-                  </option>
-                ))}
+                <option value="park">Park / Green Space</option>
+                <option value="residential">Residential Building</option>
+                <option value="commercial">Commercial Building</option>
+                <option value="school">School / Educational</option>
+                <option value="hospital">Healthcare Facility</option>
+                <option value="transport">Transportation Hub</option>
               </select>
             </div>
 
-            {/* Add Custom Location Button */}
-            <button
-              onClick={() => setShowLocationForm(!showLocationForm)}
-              className="w-full p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors mb-4"
-            >
-              {showLocationForm ? 'Cancel' : '+ Add Custom Location'}
-            </button>
-
-            {/* Custom Location Form */}
-            {showLocationForm && (
-              <CustomLocationForm onSubmit={handleAddCustomLocation} />
-            )}
-
-            {/* Custom Locations List */}
-            {customLocations.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Custom Locations</h4>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {customLocations.map(location => (
-                    <div key={location.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-gray-800">{location.title}</div>
-                        <div className="text-xs text-gray-500">{location.type} • {location.efficiency}</div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteCustomLocation(location.id)}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                        title="Delete location"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
+            {/* Size Input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Project Size (sq m)
+              </label>
+              <input
+                type="number"
+                value={projectSize}
+                onChange={(e) => setProjectSize(e.target.value)}
+                placeholder="500"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                Example: Small park ~500 sq m, Building ~1000 sq m
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Scenario Selector */}
-          <div>
-            <h3 className="font-semibold text-gray-800 mb-4">Development Scenarios</h3>
-            <div className="space-y-3">
-              {scenarios.map(scenario => (
-                <button
-                  key={scenario.id}
-                  onClick={() => setCurrentScenario(scenario.id)}
-                  className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                    currentScenario === scenario.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="font-medium text-gray-800">{scenario.label}</div>
-                  <div className="text-sm text-gray-600">{scenario.desc}</div>
-                </button>
+            {/* Optimization Priorities */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Optimization Priorities
+              </label>
+              
+              {Object.entries(optimizationFactors).map(([key, value]) => (
+                <div key={key} className="mb-2">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-medium text-gray-600 capitalize">
+                      {key === 'environmental' && '🌱 Environmental'}
+                      {key === 'social' && '👥 Social Impact'}
+                      {key === 'infrastructure' && '🏗️ Infrastructure'}
+                      {key === 'economic' && '💰 Economic'}
+                    </span>
+                    <span className="text-xs text-gray-500 capitalize">{value}</span>
+                  </div>
+                  <select
+                    value={value}
+                    onChange={(e) => setOptimizationFactors(prev => ({
+                      ...prev,
+                      [key]: e.target.value
+                    }))}
+                    className="w-full p-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="low">Low Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="high">High Priority</option>
+                  </select>
+                </div>
               ))}
             </div>
+
+            {/* Find Locations Button */}
+            <button 
+              onClick={handleOptimizeLocations}
+              disabled={isOptimizing || !projectSize}
+              className="w-full p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors mb-6 font-medium disabled:bg-gray-400"
+            >
+              {isOptimizing ? '🔄 Analyzing...' : '🎯 Find Optimal Locations'}
+            </button>
           </div>
 
-          {/* Overlay Controls */}
+          {/* Map Overlays */}
           <div>
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
+            <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
               <LayersIcon />
               <span className="ml-2">Map Overlays</span>
             </h3>
-            <div className="space-y-3">
+            
+            <div className="space-y-2">
               {overlayOptions.map(overlay => (
-                <div key={overlay.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-3 h-3 rounded-full ${overlay.color}`}></div>
-                    <div>
-                      <div className="font-medium text-gray-700 text-sm">{overlay.label}</div>
-                      <div className="text-xs text-gray-500">{overlay.desc}</div>
-                    </div>
-                  </div>
-                  <input 
-                    type="checkbox" 
+                <label key={overlay.id} className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
                     checked={activeOverlays.includes(overlay.id)}
-                    onChange={() => handleOverlayToggle(overlay.id)}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setActiveOverlays(prev => [...prev, overlay.id]);
+                      } else {
+                        setActiveOverlays(prev => prev.filter(id => id !== overlay.id));
+                      }
+                    }}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
-                </div>
+                  <div className={`w-4 h-4 rounded ${overlay.color}`}></div>
+                  <div>
+                    <div className="text-sm font-medium text-gray-700">{overlay.label}</div>
+                    <div className="text-xs text-gray-500">{overlay.desc}</div>
+                  </div>
+                </label>
               ))}
             </div>
           </div>
 
-          {/* Impact Metrics */}
-          <div>
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center">
-              <BarChartIcon />
-              <span className="ml-2">Impact Comparison</span>
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Green Space Coverage</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-400">{baselineMetrics.green}%</span>
-                  <span className="text-sm">→</span>
-                  <span className="text-sm font-medium text-green-600">{currentMetrics.green}%</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    currentMetrics.green > baselineMetrics.green 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {currentMetrics.green > baselineMetrics.green ? '+' : ''}
-                    {currentMetrics.green - baselineMetrics.green}%
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Average Temperature</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-400">{baselineMetrics.temp}°F</span>
-                  <span className="text-sm">→</span>
-                  <span className="text-sm font-medium text-blue-600">{currentMetrics.temp}°F</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    currentMetrics.temp < baselineMetrics.temp 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {currentMetrics.temp - baselineMetrics.temp}°F
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Energy Efficiency</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-400">{baselineMetrics.energy}</span>
-                  <span className="text-sm">→</span>
-                  <span className="text-sm font-medium text-green-600">{currentMetrics.energy}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    currentMetrics.energy > baselineMetrics.energy 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    +{currentMetrics.energy - baselineMetrics.energy}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Walk Score</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-400">{baselineMetrics.walk}</span>
-                  <span className="text-sm">→</span>
-                  <span className="text-sm font-medium text-indigo-600">{currentMetrics.walk}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    currentMetrics.walk > baselineMetrics.walk 
-                      ? 'bg-indigo-100 text-indigo-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    +{currentMetrics.walk - baselineMetrics.walk}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Air Quality</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-400">{baselineMetrics.air}</span>
-                  <span className="text-sm">→</span>
-                  <span className="text-sm font-medium text-purple-600">{currentMetrics.air}</span>
-                </div>
+          {/* Recommendations Results */}
+          {recommendedSites.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
+                <BarChartIcon />
+                <span className="ml-2">Recommended Sites</span>
+              </h3>
+              
+              <div className="space-y-3">
+                {recommendedSites.map((site, index) => (
+                  <div key={site.id} className="p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-sm">Site #{site.rank}</span>
+                      <div className={`px-2 py-1 rounded text-xs font-medium ${
+                        site.overallScore >= 80 ? 'bg-green-100 text-green-800' :
+                        site.overallScore >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                        site.overallScore >= 40 ? 'bg-orange-100 text-orange-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        Score: {site.overallScore.toFixed(0)}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-gray-600">Environmental:</span>
+                        <span className="font-medium ml-1">{site.environmentalScore.toFixed(0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Social:</span>
+                        <span className="font-medium ml-1">{site.socialScore.toFixed(0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Infrastructure:</span>
+                        <span className="font-medium ml-1">{site.infrastructureScore.toFixed(0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Economic:</span>
+                        <span className="font-medium ml-1">{site.economicScore.toFixed(0)}</span>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        setMapCenter(site.position);
+                        setMapZoom(16);
+                      }}
+                      className="w-full mt-2 p-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+                    >
+                      View on Map
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Analysis Explanation */}
+          {recommendedSites.length > 0 && (
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">Why These Locations?</h4>
+              <div className="text-sm text-blue-800 space-y-1">
+                {projectType === 'park' && (
+                  <>
+                    <p>• Parks placed in areas needing air quality improvement</p>
+                    <p>• Located to provide cooling in urban heat islands</p>
+                    <p>• Positioned to manage stormwater runoff</p>
+                  </>
+                )}
+                {projectType === 'residential' && (
+                  <>
+                    <p>• Minimizes displacement of existing communities</p>
+                    <p>• Avoids high-density areas to reduce crowding</p>
+                    <p>• Close to transportation and amenities</p>
+                  </>
+                )}
+                {projectType === 'commercial' && (
+                  <>
+                    <p>• Balances economic potential with social impact</p>
+                    <p>• Considers traffic flow and accessibility</p>
+                    <p>• Minimizes displacement risk</p>
+                  </>
+                )}
+                {projectType === 'school' && (
+                  <>
+                    <p>• Located in underserved high-density areas</p>
+                    <p>• Accessible via public transportation</p>
+                    <p>• Away from pollution sources</p>
+                  </>
+                )}
+                {projectType === 'hospital' && (
+                  <>
+                    <p>• Prioritizes clean air and low pollution</p>
+                    <p>• Excellent transportation access</p>
+                    <p>• Serves population-dense areas</p>
+                  </>
+                )}
+                {projectType === 'transport' && (
+                  <>
+                    <p>• Connects to existing transportation networks</p>
+                    <p>• Minimizes additional traffic congestion</p>
+                    <p>• Serves high-demand areas</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Map Area */}
       <div className="flex-1 relative" style={{ minHeight: '400px' }}>
         <MapContainer
-          center={currentLocationData.center}
-          zoom={currentLocationData.zoom}
+          center={mapCenter}
+          zoom={mapZoom}
           style={{ height: '100%', width: '100%' }}
           className="z-0"
-          key={selectedLocation} // Force re-render when location changes
+          key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -689,62 +721,187 @@ function App() {
           <MapOverlays 
             activeOverlays={activeOverlays} 
             currentScenario={currentScenario} 
-            mapCenter={currentLocationData.center}
+            mapCenter={mapCenter}
           />
           
-          {/* Dynamic markers */}
-          {allMarkers.map(marker => {
-            const isCustomLocation = customLocations.some(custom => custom.id === marker.id);
-            return (
-              <Marker key={marker.id} position={marker.position}>
-                <Popup>
-                  <div className="p-2">
-                    <h3 className="font-semibold text-gray-800">{marker.title}</h3>
-                    <p className="text-sm text-gray-600">Type: {marker.type}</p>
-                    <p className="text-sm text-gray-600">Efficiency: {marker.efficiency}</p>
-                    <p className="text-sm text-gray-600">Scenario: {currentScenarioData.label}</p>
-                    <p className="text-sm text-gray-600">Location: {currentLocationData.name}</p>
-                    {isCustomLocation && (
-                      <button
-                        onClick={() => handleDeleteCustomLocation(marker.id)}
-                        className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                      >
-                        Delete Location
-                      </button>
-                    )}
+          {/* Recommended site markers */}
+          {recommendedSites.map(site => (
+            <Marker 
+              key={site.id} 
+              position={site.position}
+              icon={createCustomIcon(site.type, true)}
+            >
+              <Popup>
+                <div className="p-2 min-w-[200px]">
+                  <h3 className="font-semibold text-gray-800 mb-2">
+                    {site.title} 
+                    <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      Rank #{site.rank}
+                    </span>
+                  </h3>
+                  
+                  <div className="mb-3">
+                    <div className="text-sm font-medium text-gray-700 mb-1">
+                      Overall Score: {site.overallScore.toFixed(1)}/100
+                    </div>
+                    <div className={`w-full bg-gray-200 rounded-full h-2 ${
+                      site.overallScore >= 80 ? 'bg-green-200' :
+                      site.overallScore >= 60 ? 'bg-yellow-200' :
+                      site.overallScore >= 40 ? 'bg-orange-200' :
+                      'bg-red-200'
+                    }`}>
+                      <div 
+                        className={`h-2 rounded-full ${
+                          site.overallScore >= 80 ? 'bg-green-500' :
+                          site.overallScore >= 60 ? 'bg-yellow-500' :
+                          site.overallScore >= 40 ? 'bg-orange-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${site.overallScore}%` }}
+                      ></div>
+                    </div>
                   </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+
+                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                    <div className="bg-green-50 p-2 rounded">
+                      <div className="text-green-700 font-medium">Environmental</div>
+                      <div className="text-green-800 font-bold">{site.environmentalScore.toFixed(0)}</div>
+                    </div>
+                    <div className="bg-blue-50 p-2 rounded">
+                      <div className="text-blue-700 font-medium">Social</div>
+                      <div className="text-blue-800 font-bold">{site.socialScore.toFixed(0)}</div>
+                    </div>
+                    <div className="bg-purple-50 p-2 rounded">
+                      <div className="text-purple-700 font-medium">Infrastructure</div>
+                      <div className="text-purple-800 font-bold">{site.infrastructureScore.toFixed(0)}</div>
+                    </div>
+                    <div className="bg-yellow-50 p-2 rounded">
+                      <div className="text-yellow-700 font-medium">Economic</div>
+                      <div className="text-yellow-800 font-bold">{site.economicScore.toFixed(0)}</div>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-gray-600 mb-2">
+                    Project: {projectType.charAt(0).toUpperCase() + projectType.slice(1)} ({projectSize} sq m)
+                  </div>
+
+                  <div className="text-xs text-gray-600">
+                    Coordinates: {site.lat.toFixed(4)}, {site.lng.toFixed(4)}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* Custom location markers */}
+          {customLocations.map(marker => (
+            <Marker 
+              key={marker.id} 
+              position={marker.position}
+              icon={createCustomIcon('custom', false)}
+            >
+              <Popup>
+                <div className="p-2">
+                  <h3 className="font-semibold text-gray-800">{marker.title}</h3>
+                  <p className="text-sm text-gray-600">Type: {marker.type}</p>
+                  <p className="text-sm text-gray-600">Efficiency: {marker.efficiency}</p>
+                  <button
+                    onClick={() => {
+                      setCustomLocations(prev => prev.filter(loc => loc.id !== marker.id));
+                    }}
+                    className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                  >
+                    Delete Location
+                  </button>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
         </MapContainer>
 
         {/* Legend */}
-        <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10">
+        <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10 max-w-xs">
           <h4 className="font-semibold text-gray-800 mb-2">Legend</h4>
-          <div className="space-y-1 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span>High Efficiency Buildings</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-500 rounded"></div>
-              <span>Medium Efficiency</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-500 rounded"></div>
-              <span>Low Efficiency</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-400 rounded"></div>
-              <span>Green Spaces</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-purple-500 rounded"></div>
-              <span>Climate Pavilions</span>
-            </div>
+          <div className="space-y-2 text-sm">
+            {recommendedSites.length > 0 && (
+              <>
+                <div className="font-medium text-gray-700 mb-1">Recommended Sites:</div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span>Excellent (80-100)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <span>Good (60-79)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                  <span>Fair (40-59)</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span>Poor (0-39)</span>
+                </div>
+                <hr className="my-2" />
+              </>
+            )}
+            
+            <div className="font-medium text-gray-700 mb-1">Map Overlays:</div>
+            {activeOverlays.includes('heat') && (
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-red-400 rounded opacity-60"></div>
+                <span>Heat Islands</span>
+              </div>
+            )}
+            {activeOverlays.includes('green') && (
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-400 rounded opacity-60"></div>
+                <span>Green Spaces</span>
+              </div>
+            )}
+            {activeOverlays.includes('traffic') && (
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-400 rounded opacity-60"></div>
+                <span>Traffic Density</span>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Instructions Overlay */}
+        {recommendedSites.length === 0 && !isOptimizing && (
+          <div className="absolute top-4 left-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10 max-w-md mx-auto">
+            <div className="text-center">
+              <MapPinIcon />
+              <h3 className="text-lg font-semibold text-gray-800 mt-2 mb-2">
+                Find Your Optimal Building Site
+              </h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Configure your project details in the sidebar and click "Find Optimal Locations" 
+                to get AI-powered recommendations based on environmental, social, infrastructure, 
+                and economic factors.
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
+                <div>
+                  <div className="font-medium text-green-700">🌱 Environmental</div>
+                  <div>Air quality, heat islands, water management</div>
+                </div>
+                <div>
+                  <div className="font-medium text-blue-700">👥 Social</div>
+                  <div>Community impact, displacement, accessibility</div>
+                </div>
+                <div>
+                  <div className="font-medium text-purple-700">🏗️ Infrastructure</div>
+                  <div>Transportation, utilities, traffic</div>
+                </div>
+                <div>
+                  <div className="font-medium text-yellow-700">💰 Economic</div>
+                  <div>Land costs, development feasibility</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
