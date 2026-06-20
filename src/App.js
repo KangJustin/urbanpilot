@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
   Layers, ThermometerSun, Bike, Building2,
@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import berkeleyData from './mock/berkeleyAnalysis.json';
 import { analyzeNeighborhood, generateVisualization, getConditions, askQuestion } from './services/analysisApi';
+import LocationSearch from './components/LocationSearch';
+import PresentDayView from './components/PresentDayView';
+import ReferenceImageInput from './components/ReferenceImageInput';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -18,7 +21,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const DOWNTOWN_BERKELEY = [37.8703, -122.2677];
+// Placeholder shown before the user searches for a location. Never re-substituted after a
+// real place is selected — see selectedLocation state in App().
+const DEFAULT_LOCATION = {
+  placeId: null,
+  displayName: 'Downtown Berkeley, CA',
+  formattedAddress: 'Downtown Berkeley, CA',
+  latitude: 37.8703,
+  longitude: -122.2677,
+};
 
 const AGENTS = [
   { id: 'coordinator', label: 'Coordinator' },
@@ -70,6 +81,14 @@ function getFloodRisk(climate) {
   if (!climate) return null;
   const risk = climate.risks?.find(r => /flood|stormwater|runoff/i.test(r.title));
   return risk ? severityLabel(risk.severity) : { label: 'Low', color: 'text-emerald-400' };
+}
+
+// The decorative intervention pins/overlay circles use real Downtown Berkeley street
+// coordinates and can't be procedurally generated for an arbitrary address — only show them
+// when the selected location actually is Berkeley.
+function isBerkeleyLocation(location) {
+  const text = `${location?.displayName || ''} ${location?.formattedAddress || ''}`.toLowerCase();
+  return text.includes('berkeley');
 }
 
 function StatBadge({ label, value, color }) {
@@ -253,6 +272,16 @@ function InterventionLayer({ visible }) {
   );
 }
 
+// react-leaflet's MapContainer center/zoom props only apply on first mount; recenter
+// explicitly whenever the selected location changes.
+function RecenterMap({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, map, zoom]);
+  return null;
+}
+
 function ScoreRing({ label, score, icon: Icon, color, stroke }) {
   const r = 22;
   const circ = 2 * Math.PI * r;
@@ -427,18 +456,42 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(DEFAULT_LOCATION);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [userVisionText, setUserVisionText] = useState('');
+  const [referenceImage, setReferenceImage] = useState(null);
 
   useEffect(() => {
-    getConditions(DOWNTOWN_BERKELEY[0], DOWNTOWN_BERKELEY[1])
-      .then(setConditions)
-      .catch(() => {});
-  }, []);
+    let cancelled = false;
+    getConditions(selectedLocation.latitude, selectedLocation.longitude)
+      .then(c => { if (!cancelled) setConditions(c); })
+      .catch(() => { if (!cancelled) setConditions(null); });
+    return () => { cancelled = true; };
+  }, [selectedLocation]);
 
-  async function handleGenerateVisualization(prompt, year) {
+  function handleLocationSelected(location) {
+    setSelectedLocation(location);
+    // A new location invalidates any analysis/scenario/chat state from the previous place.
+    setResults(null);
+    setAnalysisState('idle');
+    setActiveTime('today');
+    setVisualizedImages({});
+    setVisualizeError(null);
+    setSelectedScenario('2040');
+    setChatMessages([]);
+    setAnalysisError(null);
+    setUserVisionText('');
+    setReferenceImage(null);
+  }
+
+  async function handleGenerateVisualization(basePrompt, year) {
     setVisualizingYear(year);
     setVisualizeError(null);
+    const prompt = userVisionText.trim()
+      ? `${basePrompt} Additional requested changes: ${userVisionText.trim()}.`
+      : basePrompt;
     try {
-      const { imageUrl } = await generateVisualization(prompt);
+      const { imageUrl } = await generateVisualization(prompt, referenceImage);
       setVisualizedImages(prev => ({ ...prev, [year]: imageUrl }));
       setSelectedScenario(year);
       setActiveTime(year === '2026' ? 'today' : '2040');
@@ -470,9 +523,20 @@ export default function App() {
     setActiveTime(year === '2026' ? 'today' : '2040');
   }
 
-  const data = results || berkeleyData;
-  const heatRisk = getHeatRisk(data.agents?.climate);
-  const floodRisk = getFloodRisk(data.agents?.climate);
+  const baseData = results || berkeleyData;
+  // Site identity always follows the single source of truth (selectedLocation), even before
+  // an analysis has run for it — never let a stale Berkeley site name linger after a new search.
+  const data = {
+    ...baseData,
+    site: selectedLocation.placeId
+      ? { name: selectedLocation.displayName || selectedLocation.formattedAddress, center: { latitude: selectedLocation.latitude, longitude: selectedLocation.longitude } }
+      : baseData.site,
+  };
+  // Only show risk/score badges when they're real (from a completed analysis) or from the
+  // untouched pre-search Berkeley demo default — never the mock numbers under a new address.
+  const hasRealData = !!results || !selectedLocation.placeId;
+  const heatRisk = hasRealData ? getHeatRisk(data.agents?.climate) : null;
+  const floodRisk = hasRealData ? getFloodRisk(data.agents?.climate) : null;
   const aqiInfo = aqiCategory(conditions?.aqi);
   const WeatherIcon = weatherIcon(conditions?.weatherCode);
   const allRisks = [
@@ -511,20 +575,44 @@ export default function App() {
       setTimeout(() => setAgentStatuses(prev => ({ ...prev, [agent]: status })), ms);
     });
 
-    const [apiResult] = await Promise.all([
-      analyzeNeighborhood({
-        analysisId: `demo-${Date.now()}`,
-        site: { name: 'Downtown Berkeley, CA', center: { latitude: 37.8703, longitude: -122.2677 }, city: 'Berkeley', state: 'California' },
-        goal: { primary: 'mixed_use_development', description: goal, priorities: [] },
-        scenarioYears: [2026, 2040],
-      }).catch(() => null),
-      new Promise(resolve => setTimeout(resolve, 3700)),
-    ]);
+    let apiResult = null;
+    let analyzeFailed = false;
+    try {
+      [apiResult] = await Promise.all([
+        analyzeNeighborhood({
+          analysisId: `demo-${Date.now()}`,
+          site: {
+            name: selectedLocation.displayName || selectedLocation.formattedAddress,
+            formattedAddress: selectedLocation.formattedAddress,
+            center: { latitude: selectedLocation.latitude, longitude: selectedLocation.longitude },
+          },
+          goal: { primary: 'mixed_use_development', description: goal, priorities: [] },
+          scenarioYears: [2026, 2040],
+        }),
+        new Promise(resolve => setTimeout(resolve, 3700)),
+      ]);
+    } catch (err) {
+      analyzeFailed = true;
+      console.error('Analysis request failed:', err.message);
+    }
 
     setAgentStatuses(prev => ({ ...prev, urban_design: 'done' }));
-    if (apiResult) setResults(apiResult);
-    setAnalysisState('complete');
-    setActiveTab('recs');
+
+    if (apiResult) {
+      setResults(apiResult);
+      setAnalysisError(null);
+      setAnalysisState('complete');
+      setActiveTab('recs');
+    } else if (analyzeFailed && !isBerkeleyLocation(selectedLocation)) {
+      // Don't silently fall back to stale Berkeley demo content for a real, different location.
+      setAnalysisError('Analysis failed for this location. Please try again.');
+      setAnalysisState('idle');
+    } else {
+      // Preserves the original Berkeley demo's graceful fallback behavior.
+      setAnalysisError(null);
+      setAnalysisState('complete');
+      setActiveTab('recs');
+    }
   };
 
   const toggleOverlay = (id) => {
@@ -563,7 +651,7 @@ export default function App() {
         </div>
         <div className="w-px h-8 bg-slate-700 shrink-0" />
         <div className="shrink-0">
-          <div className="text-sm font-bold text-white leading-tight">{data.site?.name || 'Downtown Berkeley, CA'}</div>
+          <div className="text-sm font-bold text-white leading-tight">{data.site?.name}</div>
           <div className="text-[11px] text-slate-500 leading-tight">
             {data.site?.areaKm2 != null && `Area: ${data.site.areaKm2} km²`}
             {data.site?.areaKm2 != null && data.site?.population != null && ' · '}
@@ -594,6 +682,12 @@ export default function App() {
       {/* Sidebar */}
       <div className="w-[380px] bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {/* Location search */}
+          <LocationSearch onLocationSelected={handleLocationSelected} />
+
+          {/* Present-day view */}
+          <PresentDayView location={selectedLocation} />
+
           {/* Overlays */}
           <div>
             <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">
@@ -629,6 +723,11 @@ export default function App() {
               className="mt-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-500 text-white">
               {analysisState === 'running' ? 'Analyzing…' : 'Analyze'}
             </button>
+            {analysisError && (
+              <div className="mt-2 text-xs text-rose-400 bg-rose-950/30 border border-rose-900/50 rounded-lg px-3 py-2">
+                {analysisError}
+              </div>
+            )}
           </div>
 
           {/* Agent Pipeline */}
@@ -748,13 +847,25 @@ export default function App() {
                               {data.scenarios[selectedScenario].visualizationPrompt}
                             </p>
                             {!data.scenarios[selectedScenario].visualizationImage && !visualizedImages[selectedScenario] && (
-                              <button
-                                onClick={() => handleGenerateVisualization(data.scenarios[selectedScenario].visualizationPrompt, selectedScenario)}
-                                disabled={visualizingYear === selectedScenario}
-                                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-emerald-700/80 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
-                                {visualizingYear === selectedScenario ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                                {visualizingYear === selectedScenario ? 'Generating…' : 'Generate with Midjourney'}
-                              </button>
+                              <>
+                                <textarea
+                                  value={userVisionText}
+                                  onChange={e => setUserVisionText(e.target.value)}
+                                  placeholder="Describe how you want this area to change (optional) — e.g. 'Turn this parking lot into a walkable mixed-use neighborhood'"
+                                  rows={2}
+                                  className="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 mb-2 resize-none placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                                />
+                                <div className="mb-2">
+                                  <ReferenceImageInput referenceImage={referenceImage} onReferenceImageChange={setReferenceImage} />
+                                </div>
+                                <button
+                                  onClick={() => handleGenerateVisualization(data.scenarios[selectedScenario].visualizationPrompt, selectedScenario)}
+                                  disabled={visualizingYear === selectedScenario}
+                                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-emerald-700/80 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
+                                  {visualizingYear === selectedScenario ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                  {visualizingYear === selectedScenario ? 'Generating…' : 'Generate with Midjourney'}
+                                </button>
+                              </>
                             )}
                             {visualizeError && (
                               <p className="text-xs text-rose-400 mt-2">{visualizeError}</p>
@@ -832,18 +943,19 @@ export default function App() {
       <div className="flex-1 flex flex-col overflow-hidden">
       {/* Map */}
       <div className="flex-1 relative">
-        <MapContainer center={DOWNTOWN_BERKELEY} zoom={15}
+        <MapContainer center={[selectedLocation.latitude, selectedLocation.longitude]} zoom={15}
           style={{ height: '100%', width: '100%' }} className="z-0">
+          <RecenterMap center={[selectedLocation.latitude, selectedLocation.longitude]} zoom={15} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
           />
-          <MapOverlays activeOverlays={activeOverlays} mapScenario={activeTime} />
-          <InterventionLayer visible={analysisState === 'complete'} />
-          <Marker position={DOWNTOWN_BERKELEY}>
+          <MapOverlays activeOverlays={isBerkeleyLocation(selectedLocation) ? activeOverlays : []} mapScenario={activeTime} />
+          <InterventionLayer visible={analysisState === 'complete' && isBerkeleyLocation(selectedLocation)} />
+          <Marker position={[selectedLocation.latitude, selectedLocation.longitude]}>
             <Popup>
               <div style={{ fontFamily: 'system-ui' }}>
-                <div style={{ fontWeight: 700, marginBottom: 3 }}>Downtown Berkeley, CA</div>
+                <div style={{ fontWeight: 700, marginBottom: 3 }}>{selectedLocation.displayName || selectedLocation.formattedAddress}</div>
                 <div style={{ fontSize: 12, color: '#94a3b8' }}>Active analysis site</div>
               </div>
             </Popup>
