@@ -964,8 +964,9 @@ export default function App() {
           </Marker>
         </MapContainer>
 
-        {/* Future scenario visualization overlay */}
-        {activeTime === '2040' && selectedScenario !== '2026' && (visualizedImages[selectedScenario] || data?.scenarios?.[selectedScenario]?.visualizationImage) && (
+        {/* Future scenario visualization overlay — only after a real analysis has run, never
+            from idly toggling Today/2040 before clicking Analyze. */}
+        {analysisState === 'complete' && activeTime === '2040' && selectedScenario !== '2026' && (visualizedImages[selectedScenario] || data?.scenarios?.[selectedScenario]?.visualizationImage) && (
           <div className="absolute inset-0 z-[400]">
             <img
               src={visualizedImages[selectedScenario] || data.scenarios[selectedScenario].visualizationImage}
