@@ -523,7 +523,12 @@ export default function App() {
     setActiveTime(year === '2026' ? 'today' : '2040');
   }
 
-  const baseData = results || berkeleyData;
+  // Only use the bundled Berkeley demo content when nothing real has been searched yet.
+  // Once a real location is selected, every section (scores, scenarios, the map's 2040/2075
+  // image overlay) must stay empty until a fresh analysis actually completes for it — never
+  // let the canned Berkeley mock content bleed through under a different address.
+  const hasRealData = !!results || !selectedLocation.placeId;
+  const baseData = hasRealData ? (results || berkeleyData) : { agents: {}, scenarios: {}, dataDisclosure: {} };
   // Site identity always follows the single source of truth (selectedLocation), even before
   // an analysis has run for it — never let a stale Berkeley site name linger after a new search.
   const data = {
@@ -532,11 +537,8 @@ export default function App() {
       ? { name: selectedLocation.displayName || selectedLocation.formattedAddress, center: { latitude: selectedLocation.latitude, longitude: selectedLocation.longitude } }
       : baseData.site,
   };
-  // Only show risk/score badges when they're real (from a completed analysis) or from the
-  // untouched pre-search Berkeley demo default — never the mock numbers under a new address.
-  const hasRealData = !!results || !selectedLocation.placeId;
-  const heatRisk = hasRealData ? getHeatRisk(data.agents?.climate) : null;
-  const floodRisk = hasRealData ? getFloodRisk(data.agents?.climate) : null;
+  const heatRisk = getHeatRisk(data.agents?.climate);
+  const floodRisk = getFloodRisk(data.agents?.climate);
   const aqiInfo = aqiCategory(conditions?.aqi);
   const WeatherIcon = weatherIcon(conditions?.weatherCode);
   const allRisks = [
