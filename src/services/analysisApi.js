@@ -28,3 +28,16 @@ export async function generateVisualization(prompt) {
   }
   return res.json();
 }
+
+export async function askQuestion(question, site, data) {
+  const res = await fetch(`${API_BASE}/api/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, site, data }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Ask API error: ${res.status}`);
+  }
+  return res.json();
+}

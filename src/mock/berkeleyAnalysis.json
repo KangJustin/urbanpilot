@@ -184,9 +184,26 @@
     }
   },
   "scenarios": {
+    "2025": {
+      "title": "Berkeley 2025: Existing Conditions",
+      "description": "Downtown Berkeley today: strong regional transit access but fragmented bike infrastructure, limited tree canopy, and a stalled housing pipeline near BART. This is the baseline the 2040 and 2075 scenarios build from.",
+      "climateScore": 62,
+      "accessibilityScore": 71,
+      "housingScore": 48,
+      "projectedChanges": [
+        "Tree canopy: 12%",
+        "Protected bike lanes: 0 miles",
+        "ADA-accessible crossings: 14 of 26 priority intersections"
+      ],
+      "visualizationPrompt": "Create a realistic photograph of Downtown Berkeley, CA as it exists today in 2025. Show the current streetscape: sparse street trees, surface parking lots near the BART station, sharrows but no protected bike lanes on Center St and Shattuck Ave, and ordinary pedestrian crossings without ADA upgrades. Maintain recognizable Berkeley characteristics: Bay Area architecture, Berkeley Hills backdrop, BART station, local street character. Documentary realism, overcast daylight, unremarkable present-day urban condition --ar 16:9 --v 7 --stylize 100",
+      "visualizationImage": "/images/berkeley-2025-vision.jpg"
+    },
     "2040": {
       "title": "Berkeley 2040: Green Transit Hub",
       "description": "By 2040, Downtown Berkeley has added 650 mixed-use units near BART, a continuous shaded bicycle corridor connects the university to the waterfront, and tree canopy has risen from 12% to 21%. Surface temperatures in the commercial core are down 3°F. The neighborhood serves as a regional model for climate-resilient, transit-oriented development.",
+      "climateScore": 78,
+      "accessibilityScore": 86,
+      "housingScore": 72,
       "projectedChanges": [
         "Tree canopy: 12% → 21%",
         "New housing units: +650 (130 affordable)",
@@ -196,6 +213,22 @@
       ],
       "visualizationPrompt": "Create a realistic architectural visualization of Downtown Berkeley, CA in 2040. Show a climate-resilient, transit-oriented urban district featuring: tree-lined protected bike lanes along Center St and Shattuck Ave, mixed-use mid-rise housing with 20% affordable units built on former surface parking lots adjacent to the BART station, bioswales and permeable green infrastructure replacing select parking lots, and upgraded ADA-accessible pedestrian crossings with shaded sidewalks. Include mixed-use development, active transportation infrastructure, shaded pedestrian corridors, climate adaptation measures, and visible public realm improvements. Maintain recognizable Berkeley characteristics: Bay Area architecture, Berkeley Hills backdrop, BART station integration, local street character. Professional urban planning rendering, architectural competition visualization, highly realistic, optimistic but believable, climate-tech future, detailed environmental design, cinematic golden hour daylight --ar 16:9 --v 7 --stylize 250",
       "visualizationImage": "/images/berkeley-2040-vision.jpg"
+    },
+    "2075": {
+      "title": "Berkeley 2075: Resilient Future",
+      "description": "By 2075, Downtown Berkeley is a mature climate-resilient district: a continuous urban forest canopy, fully protected active-transportation network, and over a thousand new homes integrated into a dense, transit-first core. The neighborhood has become a national reference case for long-term climate adaptation.",
+      "climateScore": 92,
+      "accessibilityScore": 95,
+      "housingScore": 88,
+      "projectedChanges": [
+        "Tree canopy: 12% → 38%",
+        "New housing units: +1,400 (420 affordable)",
+        "Protected bike + micromobility network: 0 → 6.1 miles",
+        "Surface temperature reduction: −6°F in core blocks",
+        "ADA-accessible crossings: 14 → 100%"
+      ],
+      "visualizationPrompt": "Create a realistic architectural visualization of Downtown Berkeley, CA in 2075. Show a mature, fully realized climate-resilient urban district: a dense continuous tree canopy shading every street, fully separated bike and micromobility lanes throughout, mid-to-high-rise mixed-use buildings with extensive green roofs and facades built across former parking lots near the BART station, integrated bioswales and urban wetlands managing all stormwater, and a fully accessible, car-light pedestrian-first public realm. Maintain recognizable Berkeley characteristics: Bay Area architecture, Berkeley Hills backdrop, BART station integration, local street character, but visibly more mature and dense than a near-term renovation. Professional urban planning rendering, architectural competition visualization, highly realistic, utopian but believable, climate-tech future, lush detailed environmental design, cinematic golden hour daylight --ar 16:9 --v 7 --stylize 400",
+      "visualizationImage": "/images/berkeley-2075-vision.jpg"
     }
   },
   "dataDisclosure": {

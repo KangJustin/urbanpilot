@@ -5,6 +5,7 @@ const healthRouter = require('./routes/health');
 const analysisRouter = require('./routes/analysis');
 const visualizeRouter = require('./routes/visualize');
 const conditionsRouter = require('./routes/conditions');
+const askRouter = require('./routes/ask');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,6 +18,7 @@ app.use('/api', healthRouter);
 app.use('/api', analysisRouter);
 app.use('/api', visualizeRouter);
 app.use('/api', conditionsRouter);
+app.use('/api', askRouter);
 
 app.listen(PORT, () => {
   console.log(`UrbanPilot server running on http://localhost:${PORT}`);

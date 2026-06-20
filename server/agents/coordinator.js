@@ -29,11 +29,11 @@ async function runAnalysis(request) {
       return mockData.agents.urban_design;
     });
 
-  // 2040 scenario vision
-  const scenario2040 = await generateVision(request, { climate, accessibility, housing, urbanDesign })
+  // 2025/2040/2075 scenario vision
+  const scenarios = await generateVision(request, { climate, accessibility, housing, urbanDesign })
     .catch(err => {
       console.warn('Vision agent failed, using mock:', err.message);
-      return mockData.scenarios['2040'];
+      return mockData.scenarios;
     });
 
   const overallScore = Math.round(
@@ -54,7 +54,7 @@ async function runAnalysis(request) {
       housing,
       urban_design: urbanDesign,
     },
-    scenarios: { '2040': scenario2040 },
+    scenarios,
     dataDisclosure: {
       realDataUsed: ['OpenStreetMap street network', 'BART station location', 'City of Berkeley zoning reference'],
       estimatedData: ['All scores are AI-generated estimates based on Claude\'s knowledge of the site'],
