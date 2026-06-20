@@ -774,19 +774,10 @@ export default function App() {
           </div>
         )}
 
-        {/* Timeline toggle */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex bg-slate-900/90 border border-slate-700 rounded-full p-0.5 backdrop-blur-sm">
-          {['today', '2040'].map(t => (
-            <button key={t} onClick={() => setActiveTime(t)}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
-                activeTime === t ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}>
-              {t === 'today' ? 'Today' : (selectedScenario !== '2026' ? selectedScenario : '2040')}
-            </button>
-          ))}
-        </div>
-
-        {/* Map legend — only shown when there's something real to describe */}
+        {/* Map legend — only shown when there's something real to describe. activeTime can
+            only become '2040' as a side effect of selecting a scenario card after a real
+            analysis completes — there's no manual toggle anymore, since pre-analysis there's
+            no data to back a "2040" view at all. */}
         {activeTime === '2040' && (
           <div className="absolute bottom-4 right-4 z-[1000] bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 backdrop-blur-sm">
             <span className="text-xs text-emerald-400 font-semibold">{selectedScenario !== '2026' ? selectedScenario : '2040'} scenario</span>
