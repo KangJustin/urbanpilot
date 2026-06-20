@@ -7,6 +7,7 @@ import {
   Sparkles, BarChart3
 } from 'lucide-react';
 import berkeleyData from './mock/berkeleyAnalysis.json';
+import { analyzeNeighborhood } from './services/analysisApi';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -159,8 +160,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('recs');
   const [activeTime, setActiveTime] = useState('today');
   const [activeOverlays, setActiveOverlays] = useState(['heat', 'green']);
+  const [results, setResults] = useState(null);
 
-  const data = berkeleyData;
+  const data = results || berkeleyData;
   const allRisks = [
     ...data.agents.climate.risks,
     ...data.agents.accessibility.risks,
@@ -175,7 +177,22 @@ export default function App() {
   const handleAnalyze = () => {
     if (!goal.trim()) return;
     setAnalysisState('running');
+    setResults(null);
     setActiveTab('agents');
+
+    analyzeNeighborhood({
+      analysisId: `demo-${Date.now()}`,
+      site: {
+        name: 'Downtown Berkeley, CA',
+        center: { latitude: 37.8703, longitude: -122.2677 },
+        city: 'Berkeley',
+        state: 'California',
+      },
+      goal: { primary: 'mixed_use_development', description: goal, priorities: [] },
+      scenarioYears: [2025, 2040],
+    })
+      .then(res => setResults(res))
+      .catch(() => {}); // silently fall back to berkeleyData
 
     const init = {};
     AGENTS.forEach(a => { init[a.id] = 'queued'; });
