@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
-  Layers, ThermometerSun, Bike, Building2,
+  ThermometerSun, Bike, Building2,
   CheckCircle2, Loader2, Clock, AlertTriangle,
   Sparkles, BarChart3, TreePine, TrendingUp, Copy, Check,
   Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog,
@@ -97,178 +97,6 @@ function StatBadge({ label, value, color }) {
       <div className="text-[10px] text-slate-500 leading-tight">{label}</div>
       <div className={`text-xs font-semibold leading-tight ${color}`}>{value}</div>
     </div>
-  );
-}
-
-// Precise Downtown Berkeley overlay coordinates
-const OVERLAYS = {
-  today: {
-    heat: [
-      { center: [37.8651, -122.2591], radius: 280, color: '#ef4444', opacity: 0.22 },
-      { center: [37.8697, -122.2671], radius: 220, color: '#f97316', opacity: 0.18 },
-      { center: [37.8668, -122.2595], radius: 170, color: '#f59e0b', opacity: 0.15 },
-    ],
-    green: [
-      { center: [37.8713, -122.2696], radius: 150, color: '#22c55e', opacity: 0.38 },
-      { center: [37.8752, -122.2723], radius: 110, color: '#4ade80', opacity: 0.32 },
-    ],
-    traffic: [
-      { center: [37.8702, -122.2679], radius: 240, color: '#38bdf8', opacity: 0.18 },
-      { center: [37.8697, -122.2671], radius: 160, color: '#7dd3fc', opacity: 0.13 },
-    ],
-  },
-  '2040': {
-    heat: [
-      { center: [37.8651, -122.2591], radius: 150, color: '#f97316', opacity: 0.11 },
-      { center: [37.8697, -122.2671], radius: 110, color: '#f59e0b', opacity: 0.08 },
-    ],
-    green: [
-      { center: [37.8713, -122.2696], radius: 240, color: '#22c55e', opacity: 0.42 },
-      { center: [37.8752, -122.2723], radius: 180, color: '#4ade80', opacity: 0.36 },
-      { center: [37.8651, -122.2591], radius: 160, color: '#86efac', opacity: 0.30 },
-      { center: [37.8668, -122.2595], radius: 140, color: '#4ade80', opacity: 0.28 },
-      { center: [37.8697, -122.2671], radius: 170, color: '#22c55e', opacity: 0.25 },
-    ],
-    traffic: [
-      { center: [37.8702, -122.2679], radius: 310, color: '#38bdf8', opacity: 0.22 },
-      { center: [37.8697, -122.2671], radius: 220, color: '#7dd3fc', opacity: 0.18 },
-      { center: [37.8651, -122.2591], radius: 160, color: '#bae6fd', opacity: 0.14 },
-    ],
-  },
-};
-
-// Intervention sites shown on map after analysis
-const INTERVENTIONS = [
-  {
-    id: 'housing-bart',
-    pos: [37.8700, -122.2679],
-    label: 'Transit-Oriented Housing',
-    sub: '500–800 units near BART',
-    callout: '+650 units',
-    dot: '#f59e0b', ring: '#78350f',
-    showLabel: true,
-  },
-  {
-    id: 'transit-hub',
-    pos: [37.8704, -122.2683],
-    label: 'Transit Hub Upgrade',
-    sub: 'Downtown Berkeley BART station',
-    callout: '+ Access & connectivity',
-    dot: '#38bdf8', ring: '#0c4a6e',
-    showLabel: false,
-  },
-  {
-    id: 'housing-center',
-    pos: [37.8710, -122.2668],
-    label: 'Mixed-Use Infill',
-    sub: 'Center St & Shattuck',
-    callout: 'Higher density',
-    dot: '#f59e0b', ring: '#78350f',
-    showLabel: false,
-  },
-  {
-    id: 'trees-telegraph',
-    pos: [37.8651, -122.2591],
-    label: 'Street Tree Planting',
-    sub: 'Telegraph Ave corridor',
-    callout: 'Reduces heat by 3°F',
-    dot: '#4ade80', ring: '#14532d',
-    showLabel: true,
-  },
-  {
-    id: 'bioswale',
-    pos: [37.8723, -122.2706],
-    label: 'Green Infrastructure',
-    sub: 'Civic Center bioswale + permeable paving',
-    callout: '+1.2 mi tree cover',
-    dot: '#4ade80', ring: '#14532d',
-    showLabel: true,
-  },
-  {
-    id: 'ada',
-    pos: [37.8697, -122.2681],
-    label: 'ADA Crossing Upgrades',
-    sub: '12 priority intersections',
-    callout: '+42% accessibility',
-    dot: '#a78bfa', ring: '#2e1065',
-    showLabel: false,
-  },
-];
-
-const BIKE_CORRIDOR = [
-  [37.8695, -122.2730],
-  [37.8695, -122.2710],
-  [37.8695, -122.2688],
-  [37.8695, -122.2660],
-  [37.8695, -122.2640],
-];
-
-function makeInterventionIcon(dot, ring, label, callout, showLabel) {
-  if (!showLabel) {
-    return L.divIcon({
-      html: `<div style="width:26px;height:26px;border-radius:50%;background:${ring};border:2px solid ${dot};display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px ${dot}55">
-        <div style="width:8px;height:8px;background:${dot};border-radius:50%"></div>
-      </div>`,
-      iconSize: [26, 26],
-      iconAnchor: [13, 13],
-      className: '',
-    });
-  }
-  return L.divIcon({
-    html: `<div style="position:relative;width:230px;height:44px;">
-      <div style="position:absolute;left:0;top:9px;width:26px;height:26px;border-radius:50%;background:${ring};border:2px solid ${dot};display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px ${dot}55">
-        <div style="width:8px;height:8px;background:${dot};border-radius:50%"></div>
-      </div>
-      <div style="position:absolute;left:34px;top:1px;background:rgba(15,23,42,0.92);border:1px solid ${dot}55;border-radius:8px;padding:4px 9px;white-space:nowrap;backdrop-filter:blur(4px);font-family:system-ui,-apple-system,sans-serif;">
-        <div style="font-size:11px;font-weight:700;color:${dot};line-height:1.3">${label}</div>
-        <div style="font-size:9.5px;color:#94a3b8;line-height:1.3">${callout}</div>
-      </div>
-    </div>`,
-    iconSize: [230, 44],
-    iconAnchor: [13, 22],
-    className: '',
-  });
-}
-
-function MapOverlays({ activeOverlays, mapScenario }) {
-  const data = OVERLAYS[mapScenario] || OVERLAYS.today;
-  return (
-    <>
-      {activeOverlays.includes('heat') && data.heat.map((z, i) => (
-        <Circle key={`h${i}`} center={z.center} radius={z.radius}
-          pathOptions={{ color: z.color, fillColor: z.color, fillOpacity: z.opacity, weight: 1, opacity: z.opacity * 2 }} />
-      ))}
-      {activeOverlays.includes('green') && data.green.map((z, i) => (
-        <Circle key={`g${i}`} center={z.center} radius={z.radius}
-          pathOptions={{ color: z.color, fillColor: z.color, fillOpacity: z.opacity, weight: 1, opacity: z.opacity + 0.15 }} />
-      ))}
-      {activeOverlays.includes('traffic') && data.traffic.map((z, i) => (
-        <Circle key={`t${i}`} center={z.center} radius={z.radius}
-          pathOptions={{ color: z.color, fillColor: z.color, fillOpacity: z.opacity, weight: 1, opacity: z.opacity + 0.1 }} />
-      ))}
-    </>
-  );
-}
-
-function InterventionLayer({ visible }) {
-  if (!visible) return null;
-  return (
-    <>
-      <Polyline
-        positions={BIKE_CORRIDOR}
-        pathOptions={{ color: '#38bdf8', weight: 4, opacity: 0.85, dashArray: '8 4' }}
-      />
-      {INTERVENTIONS.map(s => (
-        <Marker key={s.id} position={s.pos} icon={makeInterventionIcon(s.dot, s.ring, s.label, s.callout, s.showLabel)}>
-          <Popup>
-            <div style={{ fontFamily: 'system-ui', minWidth: 160 }}>
-              <div style={{ fontWeight: 700, color: s.dot, marginBottom: 3 }}>{s.label}</div>
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>{s.sub}</div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </>
   );
 }
 
@@ -445,7 +273,6 @@ export default function App() {
   const [agentStatuses, setAgentStatuses] = useState({});
   const [activeTab, setActiveTab] = useState('recs');
   const [activeTime, setActiveTime] = useState('today');
-  const [activeOverlays, setActiveOverlays] = useState(['heat', 'green']);
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState(false);
   const [visualizingYear, setVisualizingYear] = useState(null);
@@ -617,16 +444,6 @@ export default function App() {
     }
   };
 
-  const toggleOverlay = (id) => {
-    setActiveOverlays(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const OVERLAY_OPTIONS = [
-    { id: 'heat', label: 'Heat', color: 'bg-rose-500' },
-    { id: 'green', label: 'Canopy', color: 'bg-emerald-500' },
-    { id: 'traffic', label: 'Transit', color: 'bg-sky-500' },
-  ];
-
   const RESULT_TABS = [
     { id: 'recs', label: 'Plan' },
     { id: 'risks', label: 'Risks' },
@@ -689,26 +506,6 @@ export default function App() {
 
           {/* Present-day view */}
           <PresentDayView location={selectedLocation} />
-
-          {/* Overlays */}
-          <div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">
-              <Layers className="w-3.5 h-3.5" /> Overlays
-            </div>
-            <div className="flex gap-2">
-              {OVERLAY_OPTIONS.map(o => (
-                <button key={o.id} onClick={() => toggleOverlay(o.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors ${
-                    activeOverlays.includes(o.id)
-                      ? 'bg-slate-700 border-slate-600 text-white'
-                      : 'bg-slate-800/40 border-slate-700/50 text-slate-500'
-                  }`}>
-                  <span className={`w-2 h-2 rounded-full ${activeOverlays.includes(o.id) ? o.color : 'bg-slate-600'}`} />
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Goal Input */}
           <div>
@@ -952,8 +749,6 @@ export default function App() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
           />
-          <MapOverlays activeOverlays={isBerkeleyLocation(selectedLocation) ? activeOverlays : []} mapScenario={activeTime} />
-          <InterventionLayer visible={analysisState === 'complete' && isBerkeleyLocation(selectedLocation)} />
           <Marker position={[selectedLocation.latitude, selectedLocation.longitude]}>
             <Popup>
               <div style={{ fontFamily: 'system-ui' }}>
@@ -991,48 +786,12 @@ export default function App() {
           ))}
         </div>
 
-        {/* Map legend */}
-        <div className="absolute bottom-4 right-4 z-[1000] bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-3 backdrop-blur-sm space-y-1.5">
-          <div className="text-xs font-medium text-slate-400 mb-2">Legend</div>
-          {activeOverlays.includes('heat') && (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 opacity-80" /> Heat island
-            </div>
-          )}
-          {activeOverlays.includes('green') && (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 opacity-80" /> Tree canopy
-            </div>
-          )}
-          {activeOverlays.includes('traffic') && (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-sky-500 opacity-80" /> Transit access
-            </div>
-          )}
-          {analysisState === 'complete' && (
-            <>
-              <div className="border-t border-slate-800 my-1" />
-              <div className="text-xs font-medium text-slate-400 mb-1">Interventions</div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Housing
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> Climate
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-400" /> Bike corridor
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-violet-400" /> ADA
-              </div>
-            </>
-          )}
-          {activeTime === '2040' && (
-            <div className="border-t border-slate-800 pt-1.5 mt-1">
-              <span className="text-xs text-emerald-400 font-semibold">{selectedScenario !== '2026' ? selectedScenario : '2040'} scenario</span>
-            </div>
-          )}
-        </div>
+        {/* Map legend — only shown when there's something real to describe */}
+        {activeTime === '2040' && (
+          <div className="absolute bottom-4 right-4 z-[1000] bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 backdrop-blur-sm">
+            <span className="text-xs text-emerald-400 font-semibold">{selectedScenario !== '2026' ? selectedScenario : '2040'} scenario</span>
+          </div>
+        )}
       </div>
 
       {/* Recommended interventions strip */}
