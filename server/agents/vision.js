@@ -22,7 +22,7 @@ function scenarioSchema(year, label, intensity) {
 }
 
 async function generateVision({ site, goal }, { urbanDesign, climate, accessibility, housing }) {
-  const prompt = `Generate three future scenarios (2025, 2040, 2075) and visualization prompts for this site.
+  const prompt = `Generate three future scenarios (2026, 2040, 2075) and visualization prompts for this site.
 
 Site: ${site.name}
 Goal: ${goal.description}
@@ -38,14 +38,14 @@ Housing findings: ${housing.summary}
 
 Starting scores: Climate ${climate.score}, Accessibility ${accessibility.score}, Housing ${housing.score}
 
-2025 = existing conditions today (scores should be close to the starting scores above, minimal change).
+2026 = existing conditions today (scores should be close to the starting scores above, minimal change).
 2040 = adaptive transition (immediate + medium-term actions largely complete, moderate score gains).
 2075 = resilient future (the full long-term vision realized, scores near their practical ceiling).
 
 Return exactly this JSON (no other text):
 {
-${scenarioSchema('2025', 'showing current/unimproved conditions', 'close to the starting scores')},
-${scenarioSchema('2040', 'showing a moderately transformed streetscape', 'meaningfully higher than 2025')},
+${scenarioSchema('2026', 'showing current/unimproved conditions', 'close to the starting scores')},
+${scenarioSchema('2040', 'showing a moderately transformed streetscape', 'meaningfully higher than 2026')},
 ${scenarioSchema('2075', 'showing a fully realized, mature climate-resilient district', 'highest, near-ceiling scores')}
 }
 

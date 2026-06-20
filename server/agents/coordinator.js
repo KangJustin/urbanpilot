@@ -29,7 +29,7 @@ async function runAnalysis(request) {
       return mockData.agents.urban_design;
     });
 
-  // 2025/2040/2075 scenario vision
+  // 2026/2040/2075 scenario vision
   const scenarios = await generateVision(request, { climate, accessibility, housing, urbanDesign })
     .catch(err => {
       console.warn('Vision agent failed, using mock:', err.message);

@@ -184,8 +184,8 @@
     }
   },
   "scenarios": {
-    "2025": {
-      "title": "Berkeley 2025: Existing Conditions",
+    "2026": {
+      "title": "Berkeley 2026: Existing Conditions",
       "description": "Downtown Berkeley today: strong regional transit access but fragmented bike infrastructure, limited tree canopy, and a stalled housing pipeline near BART. This is the baseline the 2040 and 2075 scenarios build from.",
       "climateScore": 62,
       "accessibilityScore": 71,
@@ -195,8 +195,8 @@
         "Protected bike lanes: 0 miles",
         "ADA-accessible crossings: 14 of 26 priority intersections"
       ],
-      "visualizationPrompt": "Create a realistic photograph of Downtown Berkeley, CA as it exists today in 2025. Show the current streetscape: sparse street trees, surface parking lots near the BART station, sharrows but no protected bike lanes on Center St and Shattuck Ave, and ordinary pedestrian crossings without ADA upgrades. Maintain recognizable Berkeley characteristics: Bay Area architecture, Berkeley Hills backdrop, BART station, local street character. Documentary realism, overcast daylight, unremarkable present-day urban condition --ar 16:9 --v 7 --stylize 100",
-      "visualizationImage": "/images/berkeley-2025-vision.jpg"
+      "visualizationPrompt": "Create a realistic photograph of Downtown Berkeley, CA as it exists today in 2026. Show the current streetscape: sparse street trees, surface parking lots near the BART station, sharrows but no protected bike lanes on Center St and Shattuck Ave, and ordinary pedestrian crossings without ADA upgrades. Maintain recognizable Berkeley characteristics: Bay Area architecture, Berkeley Hills backdrop, BART station, local street character. Documentary realism, overcast daylight, unremarkable present-day urban condition --ar 16:9 --v 7 --stylize 100",
+      "visualizationImage": "/images/berkeley-2026-vision.jpg"
     },
     "2040": {
       "title": "Berkeley 2040: Green Transit Hub",

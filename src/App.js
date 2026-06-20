@@ -441,7 +441,7 @@ export default function App() {
       const { imageUrl } = await generateVisualization(prompt);
       setVisualizedImages(prev => ({ ...prev, [year]: imageUrl }));
       setSelectedScenario(year);
-      setActiveTime(year === '2025' ? 'today' : '2040');
+      setActiveTime(year === '2026' ? 'today' : '2040');
     } catch (err) {
       setVisualizeError(err.message);
     } finally {
@@ -467,7 +467,7 @@ export default function App() {
 
   function selectScenario(year) {
     setSelectedScenario(year);
-    setActiveTime(year === '2025' ? 'today' : '2040');
+    setActiveTime(year === '2026' ? 'today' : '2040');
   }
 
   const data = results || berkeleyData;
@@ -516,7 +516,7 @@ export default function App() {
         analysisId: `demo-${Date.now()}`,
         site: { name: 'Downtown Berkeley, CA', center: { latitude: 37.8703, longitude: -122.2677 }, city: 'Berkeley', state: 'California' },
         goal: { primary: 'mixed_use_development', description: goal, priorities: [] },
-        scenarioYears: [2025, 2040],
+        scenarioYears: [2026, 2040],
       }).catch(() => null),
       new Promise(resolve => setTimeout(resolve, 3700)),
     ]);
@@ -544,7 +544,7 @@ export default function App() {
     { id: 'ask', label: 'Ask AI' },
   ];
 
-  const SCENARIO_YEARS = ['2025', '2040', '2075'];
+  const SCENARIO_YEARS = ['2026', '2040', '2075'];
 
   const SUGGESTED_QUESTIONS = [
     'How will this area handle extreme heat?',
@@ -828,6 +828,8 @@ export default function App() {
         </div>
       </div>
 
+      {/* Map column */}
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Map */}
       <div className="flex-1 relative">
         <MapContainer center={DOWNTOWN_BERKELEY} zoom={15}
@@ -849,7 +851,7 @@ export default function App() {
         </MapContainer>
 
         {/* Future scenario visualization overlay */}
-        {activeTime === '2040' && selectedScenario !== '2025' && (visualizedImages[selectedScenario] || data?.scenarios?.[selectedScenario]?.visualizationImage) && (
+        {activeTime === '2040' && selectedScenario !== '2026' && (visualizedImages[selectedScenario] || data?.scenarios?.[selectedScenario]?.visualizationImage) && (
           <div className="absolute inset-0 z-[400]">
             <img
               src={visualizedImages[selectedScenario] || data.scenarios[selectedScenario].visualizationImage}
@@ -869,7 +871,7 @@ export default function App() {
               className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
                 activeTime === t ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
               }`}>
-              {t === 'today' ? 'Today' : (selectedScenario !== '2025' ? selectedScenario : '2040')}
+              {t === 'today' ? 'Today' : (selectedScenario !== '2026' ? selectedScenario : '2040')}
             </button>
           ))}
         </div>
@@ -912,11 +914,10 @@ export default function App() {
           )}
           {activeTime === '2040' && (
             <div className="border-t border-slate-800 pt-1.5 mt-1">
-              <span className="text-xs text-emerald-400 font-semibold">{selectedScenario !== '2025' ? selectedScenario : '2040'} scenario</span>
+              <span className="text-xs text-emerald-400 font-semibold">{selectedScenario !== '2026' ? selectedScenario : '2040'} scenario</span>
             </div>
           )}
         </div>
-      </div>
       </div>
 
       {/* Recommended interventions strip */}
@@ -928,6 +929,8 @@ export default function App() {
           </div>
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }
