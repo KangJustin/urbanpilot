@@ -11,10 +11,10 @@ function extractJSON(text) {
   throw new Error('No valid JSON found in agent response');
 }
 
-async function callAgent(systemPrompt, userMessage) {
+async function callAgent(systemPrompt, userMessage, model = 'claude-sonnet-4-6') {
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2048,
+    model,
+    max_tokens: model.includes('haiku') ? 1024 : 2048,
     system: [
       {
         type: 'text',
