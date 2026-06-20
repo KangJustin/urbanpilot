@@ -4,7 +4,7 @@ import L from 'leaflet';
 import {
   MapPin, Layers, ThermometerSun, Bike, Building2,
   CheckCircle2, Loader2, Clock, AlertTriangle,
-  Sparkles, BarChart3, TreePine, TrendingUp,
+  Sparkles, BarChart3, TreePine, TrendingUp, Copy, Check,
 } from 'lucide-react';
 import berkeleyData from './mock/berkeleyAnalysis.json';
 import { analyzeNeighborhood } from './services/analysisApi';
@@ -253,6 +253,7 @@ export default function App() {
   const [activeTime, setActiveTime] = useState('today');
   const [activeOverlays, setActiveOverlays] = useState(['heat', 'green']);
   const [results, setResults] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const data = results || berkeleyData;
   const allRisks = [
@@ -456,7 +457,7 @@ export default function App() {
                       <div className="text-sm font-bold text-white mb-2">{data.scenarios['2040'].title}</div>
                       <p className="text-xs text-slate-300 leading-relaxed">{data.scenarios['2040'].description}</p>
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 mb-3">
                       {data.scenarios['2040'].projectedChanges?.map((c, i) => (
                         <div key={i} className="flex items-center gap-2 bg-slate-800/40 rounded-lg px-3 py-2">
                           <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -466,9 +467,29 @@ export default function App() {
                     </div>
                     <button
                       onClick={() => setActiveTime(t => t === 'today' ? '2040' : 'today')}
-                      className="mt-3 w-full py-2 rounded-lg text-xs font-medium border border-emerald-700 text-emerald-400 hover:bg-emerald-900/30 transition-colors">
+                      className="w-full py-2 rounded-lg text-xs font-medium border border-emerald-700 text-emerald-400 hover:bg-emerald-900/30 transition-colors mb-3">
                       {activeTime === 'today' ? '→ Show 2040 on map' : '← Back to today'}
                     </button>
+                    {data.scenarios['2040'].visualizationPrompt && (
+                      <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-slate-400">Midjourney prompt</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(data.scenarios['2040'].visualizationPrompt);
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 2000);
+                            }}
+                            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors">
+                            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            {copied ? 'Copied!' : 'Copy'}
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed font-mono">
+                          {data.scenarios['2040'].visualizationPrompt}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
