@@ -3,7 +3,9 @@
     "name": "Downtown Berkeley, CA",
     "center": { "latitude": 37.8703, "longitude": -122.2677 },
     "city": "Berkeley",
-    "state": "California"
+    "state": "California",
+    "areaKm2": 1.8,
+    "population": 14200
   },
   "currentConditions": {
     "climateScore": 62,
@@ -191,12 +193,14 @@
         "Protected bike lanes: 0 → 2.4 miles",
         "Surface temperature reduction: −3°F in core blocks",
         "ADA-accessible crossings: 14 → 26"
-      ]
+      ],
+      "visualizationPrompt": "Create a realistic architectural visualization of Downtown Berkeley, CA in 2040. Show a climate-resilient, transit-oriented urban district featuring: tree-lined protected bike lanes along Center St and Shattuck Ave, mixed-use mid-rise housing with 20% affordable units built on former surface parking lots adjacent to the BART station, bioswales and permeable green infrastructure replacing select parking lots, and upgraded ADA-accessible pedestrian crossings with shaded sidewalks. Include mixed-use development, active transportation infrastructure, shaded pedestrian corridors, climate adaptation measures, and visible public realm improvements. Maintain recognizable Berkeley characteristics: Bay Area architecture, Berkeley Hills backdrop, BART station integration, local street character. Professional urban planning rendering, architectural competition visualization, highly realistic, optimistic but believable, climate-tech future, detailed environmental design, cinematic golden hour daylight --ar 16:9 --v 7 --stylize 250",
+      "visualizationImage": "/images/berkeley-2040-vision.jpg"
     }
   },
   "dataDisclosure": {
     "realDataUsed": ["OpenStreetMap street network", "BART station location", "City of Berkeley zoning reference"],
-    "estimatedData": ["Heat island intensity values", "Tree canopy percentage", "Housing pipeline estimates"],
+    "estimatedData": ["Heat island intensity values", "Tree canopy percentage", "Housing pipeline estimates", "District area and population"],
     "limitations": ["Scores are illustrative estimates for demo purposes. Not verified planning data."]
   }
 }

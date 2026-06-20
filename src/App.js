@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import {
-  MapPin, Layers, ThermometerSun, Bike, Building2,
+  Layers, ThermometerSun, Bike, Building2,
   CheckCircle2, Loader2, Clock, AlertTriangle,
   Sparkles, BarChart3, TreePine, TrendingUp, Copy, Check,
+  Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog,
 } from 'lucide-react';
 import berkeleyData from './mock/berkeleyAnalysis.json';
-import { analyzeNeighborhood } from './services/analysisApi';
+import { analyzeNeighborhood, generateVisualization, getConditions } from './services/analysisApi';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -28,6 +29,56 @@ const AGENTS = [
 
 const COST_COLORS = { low: 'text-emerald-400', medium: 'text-amber-400', high: 'text-rose-400' };
 const SEVERITY_COLORS = [null, 'bg-emerald-500', 'bg-emerald-400', 'bg-amber-400', 'bg-rose-400', 'bg-rose-600'];
+
+// WMO weather codes -> icon, per https://open-meteo.com/en/docs
+function weatherIcon(code) {
+  if (code === 0) return Sun;
+  if ([1, 2, 3].includes(code)) return Cloud;
+  if ([45, 48].includes(code)) return CloudFog;
+  if (code >= 51 && code <= 67) return CloudRain;
+  if (code >= 71 && code <= 77) return CloudSnow;
+  if (code >= 80 && code <= 99) return CloudLightning;
+  return Cloud;
+}
+
+function aqiCategory(aqi) {
+  if (aqi == null) return null;
+  if (aqi <= 50) return { label: 'Good', color: 'text-emerald-400' };
+  if (aqi <= 100) return { label: 'Moderate', color: 'text-amber-400' };
+  if (aqi <= 150) return { label: 'Unhealthy (SG)', color: 'text-orange-400' };
+  if (aqi <= 200) return { label: 'Unhealthy', color: 'text-rose-400' };
+  return { label: 'Very Unhealthy', color: 'text-purple-400' };
+}
+
+function severityLabel(severity) {
+  if (severity >= 4) return { label: 'High', color: 'text-rose-400' };
+  if (severity === 3) return { label: 'Moderate', color: 'text-amber-400' };
+  return { label: 'Low', color: 'text-emerald-400' };
+}
+
+function getHeatRisk(climate) {
+  if (!climate) return null;
+  const risk = climate.risks?.find(r => /heat/i.test(r.title));
+  if (risk) return severityLabel(risk.severity);
+  if (climate.score >= 70) return { label: 'Low', color: 'text-emerald-400' };
+  if (climate.score >= 50) return { label: 'Moderate', color: 'text-amber-400' };
+  return { label: 'High', color: 'text-rose-400' };
+}
+
+function getFloodRisk(climate) {
+  if (!climate) return null;
+  const risk = climate.risks?.find(r => /flood|stormwater|runoff/i.test(r.title));
+  return risk ? severityLabel(risk.severity) : { label: 'Low', color: 'text-emerald-400' };
+}
+
+function StatBadge({ label, value, color }) {
+  return (
+    <div className="text-right shrink-0">
+      <div className="text-[10px] text-slate-500 leading-tight">{label}</div>
+      <div className={`text-xs font-semibold leading-tight ${color}`}>{value}</div>
+    </div>
+  );
+}
 
 // Precise Downtown Berkeley overlay coordinates
 const OVERLAYS = {
@@ -254,8 +305,36 @@ export default function App() {
   const [activeOverlays, setActiveOverlays] = useState(['heat', 'green']);
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [visualizing, setVisualizing] = useState(false);
+  const [visualizedImage, setVisualizedImage] = useState(null);
+  const [visualizeError, setVisualizeError] = useState(null);
+  const [conditions, setConditions] = useState(null);
+
+  useEffect(() => {
+    getConditions(DOWNTOWN_BERKELEY[0], DOWNTOWN_BERKELEY[1])
+      .then(setConditions)
+      .catch(() => {});
+  }, []);
+
+  async function handleGenerateVisualization(prompt) {
+    setVisualizing(true);
+    setVisualizeError(null);
+    try {
+      const { imageUrl } = await generateVisualization(prompt);
+      setVisualizedImage(imageUrl);
+      setActiveTime('2040');
+    } catch (err) {
+      setVisualizeError(err.message);
+    } finally {
+      setVisualizing(false);
+    }
+  }
 
   const data = results || berkeleyData;
+  const heatRisk = getHeatRisk(data.agents?.climate);
+  const floodRisk = getFloodRisk(data.agents?.climate);
+  const aqiInfo = aqiCategory(conditions?.aqi);
+  const WeatherIcon = weatherIcon(conditions?.weatherCode);
   const allRisks = [
     ...(data.agents?.climate?.risks || []),
     ...(data.agents?.accessibility?.risks || []),
@@ -325,25 +404,46 @@ export default function App() {
   ];
 
   return (
-    <div className="h-screen flex overflow-hidden bg-slate-950">
-      {/* Sidebar */}
-      <div className="w-[380px] bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-slate-800 shrink-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="w-5 h-5 text-emerald-400" />
-            <h1 className="text-lg font-bold text-white tracking-tight">UrbanPilot</h1>
+    <div className="h-screen flex flex-col overflow-hidden bg-slate-950">
+      {/* Top bar */}
+      <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-5 py-3 flex items-center gap-5 overflow-x-auto">
+        <div className="flex items-center gap-2 shrink-0">
+          <Sparkles className="w-5 h-5 text-emerald-400" />
+          <span className="text-sm font-bold text-white tracking-tight">UrbanPilot</span>
+        </div>
+        <div className="w-px h-8 bg-slate-700 shrink-0" />
+        <div className="shrink-0">
+          <div className="text-sm font-bold text-white leading-tight">{data.site?.name || 'Downtown Berkeley, CA'}</div>
+          <div className="text-[11px] text-slate-500 leading-tight">
+            {data.site?.areaKm2 != null && `Area: ${data.site.areaKm2} km²`}
+            {data.site?.areaKm2 != null && data.site?.population != null && ' · '}
+            {data.site?.population != null && `Population: ${data.site.population.toLocaleString()}`}
           </div>
-          <p className="text-xs text-slate-500">Multi-agent urban planning copilot</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-          {/* Site */}
-          <div className="flex items-center gap-2 bg-slate-800/60 rounded-lg px-3 py-2.5">
-            <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="text-sm font-medium text-white">Downtown Berkeley, CA</span>
+        <div className="flex items-center gap-5 ml-auto shrink-0">
+          {conditions?.temperatureF != null && (
+            <div className="flex items-center gap-1.5 text-sm text-slate-200 shrink-0">
+              <WeatherIcon className="w-4 h-4 text-amber-300" />
+              {Math.round(conditions.temperatureF)}°F
+            </div>
+          )}
+          {aqiInfo && (
+            <StatBadge label="Air Quality" value={`${aqiInfo.label} · ${conditions.aqi} AQI`} color={aqiInfo.color} />
+          )}
+          {heatRisk && <StatBadge label="Heat Risk" value={heatRisk.label} color={heatRisk.color} />}
+          {floodRisk && <StatBadge label="Flood Risk" value={floodRisk.label} color={floodRisk.color} />}
+          <div className="flex items-center gap-1.5 bg-emerald-900/40 border border-emerald-700/50 rounded-full px-2.5 py-1 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] font-medium text-emerald-400">Live Data</span>
           </div>
+        </div>
+      </div>
 
+      <div className="flex-1 flex overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-[380px] bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {/* Overlays */}
           <div>
             <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">
@@ -485,9 +585,21 @@ export default function App() {
                             {copied ? 'Copied!' : 'Copy'}
                           </button>
                         </div>
-                        <p className="text-xs text-slate-500 leading-relaxed font-mono">
+                        <p className="text-xs text-slate-500 leading-relaxed font-mono mb-2">
                           {data.scenarios['2040'].visualizationPrompt}
                         </p>
+                        {!data.scenarios['2040'].visualizationImage && !visualizedImage && (
+                          <button
+                            onClick={() => handleGenerateVisualization(data.scenarios['2040'].visualizationPrompt)}
+                            disabled={visualizing}
+                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-emerald-700/80 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
+                            {visualizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                            {visualizing ? 'Generating…' : 'Generate with Midjourney'}
+                          </button>
+                        )}
+                        {visualizeError && (
+                          <p className="text-xs text-rose-400 mt-2">{visualizeError}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -521,6 +633,20 @@ export default function App() {
             </Popup>
           </Marker>
         </MapContainer>
+
+        {/* 2040 visualization overlay */}
+        {activeTime === '2040' && (data?.scenarios?.['2040']?.visualizationImage || visualizedImage) && (
+          <div className="absolute inset-0 z-[400]">
+            <img
+              src={visualizedImage || data.scenarios['2040'].visualizationImage}
+              alt="2040 visualization"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute top-4 left-4 bg-slate-900/90 border border-emerald-700/50 rounded-lg px-3 py-1.5 backdrop-blur-sm">
+              <span className="text-xs font-semibold text-emerald-400 tracking-wider">2040 VISION</span>
+            </div>
+          </div>
+        )}
 
         {/* Timeline toggle */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex bg-slate-900/90 border border-slate-700 rounded-full p-0.5 backdrop-blur-sm">
@@ -576,6 +702,7 @@ export default function App() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

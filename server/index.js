@@ -3,15 +3,20 @@ const express = require('express');
 const cors = require('cors');
 const healthRouter = require('./routes/health');
 const analysisRouter = require('./routes/analysis');
+const visualizeRouter = require('./routes/visualize');
+const conditionsRouter = require('./routes/conditions');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: 'http://localhost:3000' }));
+const allowedOrigins = ['http://localhost:3000', ...(process.env.ALLOWED_ORIGINS?.split(',') || [])];
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.use('/api', healthRouter);
 app.use('/api', analysisRouter);
+app.use('/api', visualizeRouter);
+app.use('/api', conditionsRouter);
 
 app.listen(PORT, () => {
   console.log(`UrbanPilot server running on http://localhost:${PORT}`);
