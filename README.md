@@ -105,9 +105,11 @@ cd server && node index.js   # backend, http://localhost:3001
 The frontend hot-reloads on save. The backend doesn't — restart it after editing anything in
 `server/`. (`npm run dev` in `server/` uses `node --watch` if you'd rather it restart itself.)
 
-## Token compression benchmark (The Token Company)
+## Token compression (The Token Company)
 
-We measured [the-token-company](https://thetokencompany.dev)'s `with_compression()` wrapper
+### Standalone benchmark
+
+We measured [the-token-company](https://thetokencompany.com)'s `with_compression()` wrapper
 against UrbanPilot's own real production prompts — real Anthropic API calls, real
 `response.usage.input_tokens`, no estimates. Two prompt shapes were tested against Downtown
 Berkeley: a structured JSON-schema generation prompt (the Housing Agent's verified-ACS-census
@@ -121,8 +123,36 @@ prompt) and a long, prose-heavy context prompt (the Ask UrbanPilot AI assistant'
 In both cases, compression came at no cost to output quality — every compressed response still
 parsed as valid structured JSON and cited the exact verified figures (Census income/rent, real
 risk severities, scenario specifics) from the source data, with no hallucination observed.
-The benchmark scripts that produced these numbers live in `server/scripts/compression-demo.js`,
+The benchmark scripts that produced these numbers live in `server/scripts/compression-bench.js`,
 `compression_benchmark_ttc.py`, and `compression_benchmark_ttc_longcontext.py`.
+
+### Our own compact-encoding layer
+
+Independent of the-token-company, every scoring agent (`housing.js`, `climate.js`,
+`accessibility.js`) builds its verified-data block and JSON response schema in a hand-written
+terse encoding (`services/promptCompression.js`) instead of the original pretty-printed,
+labeled-block format — no third party involved, just a denser prompt shape. Measured against
+the original verbose prompts with real API calls (`server/scripts/compression-bench.js`):
+
+| Agent | Original (input tokens) | Compact encoding | Reduction |
+|---|---|---|---|
+| Housing | 1,155 | 834 | **27.8%** |
+| Climate | 1,507 | 973 | **35.4%** |
+| Accessibility | 1,247 | 827 | **33.7%** |
+
+Output quality held in every case: valid JSON, exact verified-number citations, and intact
+risk/recommendation arrays.
+
+### Production integration
+
+`server/services/claudeService.js` wraps the live Anthropic client every agent uses
+(`the-token-company/anthropic`'s `withCompression`), so every real request — not just the
+benchmark — passes through TTC's compression before reaching Claude. Because the compact
+encoding above already strips most of the redundancy out of these prompts, TTC's incremental
+contribution on top is small in practice (observed: ~1% additional reduction on an
+already-compacted Housing Agent prompt) — the two techniques target the same redundancy, so
+gains aren't simply additive. TTC's wrapper exposes live stats
+(`client.compression.totalTokensSaved`), logged on every call.
 
 ## Known limitations
 
