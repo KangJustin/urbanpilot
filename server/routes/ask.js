@@ -11,7 +11,7 @@ router.post('/ask', async (req, res) => {
   }
 
   try {
-    const answer = await answerQuestion({ question, site, data });
+    const { answer } = await answerQuestion({ question, site, data });
     res.json({ answer });
   } catch (err) {
     res.status(503).json({ error: err.message });
