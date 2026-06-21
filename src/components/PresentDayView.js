@@ -131,7 +131,7 @@ export default function PresentDayView({ location }) {
         )}
       </div>
 
-      <div className="relative h-[220px] bg-slate-800">
+      <div className="relative h-[160px] bg-slate-800">
         {!loaded && !loadError && (
           <div className="absolute inset-0 flex items-center justify-center text-slate-500">
             <Loader2 className="w-5 h-5 animate-spin" />

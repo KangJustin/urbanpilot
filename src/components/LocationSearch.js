@@ -4,7 +4,7 @@ import { autocompleteLocation, getPlaceDetails } from '../services/analysisApi';
 
 const DEBOUNCE_MS = 250;
 
-export default function LocationSearch({ onLocationSelected }) {
+export default function LocationSearch({ onLocationSelected, compact = false }) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -83,14 +83,14 @@ export default function LocationSearch({ onLocationSelected }) {
 
   return (
     <div className="relative">
-      <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2.5">
+      <div className={`flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg ${compact ? 'px-2.5 py-2' : 'px-3 py-2.5'}`}>
         <Search className="w-4 h-4 text-slate-500 shrink-0" />
         <input
           value={query}
           onChange={handleChange}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
-          placeholder="Search for an address, neighborhood, landmark, or city"
-          className="flex-1 bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
+          placeholder={compact ? 'Search address, landmark, city…' : 'Search for an address, neighborhood, landmark, or city'}
+          className="flex-1 min-w-0 bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
         />
         {(searching || resolving) && <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />}
         {!searching && !resolving && query && (

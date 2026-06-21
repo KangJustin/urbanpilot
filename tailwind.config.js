@@ -38,7 +38,16 @@ module.exports = {
         'up-md': '0 4px 12px rgba(0, 0, 0, 0.4)',
         'up-accent': '0 0 0 1px rgba(16, 185, 129, 0.25)',
       },
+      keyframes: {
+        shimmer: {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
+      },
+      animation: {
+        shimmer: 'shimmer 3s linear infinite',
+      },
     },
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
 };

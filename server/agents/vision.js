@@ -49,7 +49,7 @@ ${scenarioSchema('2040', 'showing a moderately transformed streetscape', 'meanin
 ${scenarioSchema('2075', 'showing a fully realized, mature climate-resilient district', 'highest, near-ceiling scores')}
 }
 
-For each visualizationPrompt: replace placeholders with real specific visual elements from the recommendations (e.g. tree-lined protected bike lanes, mixed-use timber-frame buildings, green rooftops, bioswales), scaled appropriately to how much time has passed. Maintain recognizable Berkeley/Oakland characteristics: Bay Area architecture, Berkeley Hills backdrop, BART integration, local street character. Make each prompt vivid, specific, and visually distinct from the others.`;
+For each visualizationPrompt: replace placeholders with real specific visual elements from the recommendations (e.g. tree-lined protected bike lanes, mixed-use timber-frame buildings, green rooftops, bioswales), scaled appropriately to how much time has passed. Maintain recognizable characteristics of ${site.name} itself — its actual regional architecture style, climate, topography, and local street character — based on your knowledge of this specific place. Do not substitute a different city's landmarks or characteristics. Make each prompt vivid, specific, and visually distinct from the others.`;
 
   return callAgent(SYSTEM, prompt, 'claude-sonnet-4-6', 3072);
 }

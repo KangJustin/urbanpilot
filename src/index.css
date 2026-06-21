@@ -58,3 +58,15 @@
   height: 100%;
   width: 100%;
 }
+
+/* Lighten the dark CARTO tiles enough that streets/blocks are legible, while keeping the
+   overall dark climate-tech identity (no basemap swap, just a contrast/brightness lift). */
+.map-tiles-enhanced {
+  filter: brightness(1.4) contrast(1.15) saturate(1.15);
+}
+
+@keyframes site-pulse {
+  0% { transform: scale(0.6); opacity: 0.6; }
+  70% { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
