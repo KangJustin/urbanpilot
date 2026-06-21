@@ -40,7 +40,7 @@ Return exactly this JSON (no other text):
   ]
 }`;
 
-  return callAgent(SYSTEM, prompt);
+  return callAgent(SYSTEM, prompt, 'claude-haiku-4-5-20251001', 2048);
 }
 
 module.exports = { synthesizeUrbanDesign };
