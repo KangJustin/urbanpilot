@@ -8,7 +8,7 @@ import {
   analyzeNeighborhood, generateVisualization, getConditions, askQuestion,
   getStreetViewStatus, streetViewImageUrl, satelliteImageUrl,
 } from './services/analysisApi';
-import PresentDayView from './components/PresentDayView';
+import StreetViewPanel from './components/StreetViewPanel';
 import TopHeader from './components/TopHeader';
 import ControlStrip from './components/ControlStrip';
 import DataMethodologySection from './components/DataMethodologySection';
@@ -334,11 +334,16 @@ export default function App() {
         analysisError={analysisError}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left content panel: present-day view, AI agent cards */}
-        <div className="w-[320px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-            <PresentDayView location={selectedLocation} />
+      {/* Civic-planning redesign Phase 5: stacked (single column, page scrolls) below the lg
+          breakpoint (1024px, matches the "tablet stacks, desktop/small-laptop stay side-by-side"
+          requirement); side-by-side at lg+ with the analysis workspace (left+right, ~59%) wider
+          than the map (~41%), reversing the old fixed-px layout where the map (flex-1 filling
+          whatever's left after two 320/300px sidebars) actually took the majority share. */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+        {/* Left content panel: Street View, AI agent cards */}
+        <div className="w-full lg:w-[34%] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col lg:overflow-hidden">
+          <div className="flex-1 lg:overflow-y-auto px-4 py-4 space-y-3">
+            <StreetViewPanel location={selectedLocation} />
 
             {analysisState === 'idle' && (
               <div>
@@ -378,30 +383,32 @@ export default function App() {
           </div>
         </div>
 
-        <MainMapPanel
-          selectedLocation={selectedLocation}
-          analysisState={analysisState}
-          selectedScenario={selectedScenario}
-          selectScenario={selectScenario}
-          visualizedImages={visualizedImages}
-          presentPhotoUrl={presentPhotoUrl}
-          presentPhotoSource={presentPhotoSource}
-          data={data}
-          scenarioYears={SCENARIO_YEARS}
-          userVisionText={userVisionText}
-          setUserVisionText={setUserVisionText}
-          referenceImage={referenceImage}
-          setReferenceImage={setReferenceImage}
-          handleGenerateVisualization={handleGenerateVisualization}
-          visualizingYear={visualizingYear}
-          visualizeError={visualizeError}
-          copied={copied}
-          setCopied={setCopied}
-        />
+        <div className="w-full lg:w-[41%] lg:flex-1 min-h-[420px] lg:min-h-0 shrink-0 flex flex-col">
+          <MainMapPanel
+            selectedLocation={selectedLocation}
+            analysisState={analysisState}
+            selectedScenario={selectedScenario}
+            selectScenario={selectScenario}
+            visualizedImages={visualizedImages}
+            presentPhotoUrl={presentPhotoUrl}
+            presentPhotoSource={presentPhotoSource}
+            data={data}
+            scenarioYears={SCENARIO_YEARS}
+            userVisionText={userVisionText}
+            setUserVisionText={setUserVisionText}
+            referenceImage={referenceImage}
+            setReferenceImage={setReferenceImage}
+            handleGenerateVisualization={handleGenerateVisualization}
+            visualizingYear={visualizingYear}
+            visualizeError={visualizeError}
+            copied={copied}
+            setCopied={setCopied}
+          />
+        </div>
 
         {/* Right analysis panel — only shows real output from a completed analysis; never the
             pre-search Berkeley placeholder, which would look like real scores for no reason. */}
-        <div className="w-[300px] shrink-0 bg-slate-900 border-l border-slate-800 overflow-y-auto px-4 py-4 space-y-3">
+        <div className="w-full lg:w-[25%] shrink-0 bg-slate-900 border-l border-slate-800 lg:overflow-y-auto px-4 py-4 space-y-3">
           {analysisState === 'complete' ? (
             <>
               <CurrentConditionsPanel

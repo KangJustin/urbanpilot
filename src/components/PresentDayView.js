@@ -95,10 +95,10 @@ export default function PresentDayView({ location }) {
 
   if (!API_KEY) {
     return (
-      <div className="rounded-lg border border-slate-700/60 bg-slate-800/40 p-4 text-xs text-slate-500">
+      <div className="rounded-lg border border-civic-border bg-civic-surface-secondary p-4 text-xs text-civic-text-muted">
         <div className="flex items-center gap-1.5 mb-1">
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-          <span className="font-medium text-slate-400">Present-day view not configured</span>
+          <AlertTriangle className="w-3.5 h-3.5 text-civic-housing" />
+          <span className="font-medium text-civic-text">Present-day view not configured</span>
         </div>
         Set REACT_APP_GOOGLE_MAPS_API_KEY to enable the live Google Maps / Street View panel.
       </div>
@@ -106,17 +106,19 @@ export default function PresentDayView({ location }) {
   }
 
   return (
-    <div className="rounded-lg border border-slate-700/60 overflow-hidden">
-      <div className="flex items-center gap-1.5 p-2 bg-slate-800/60 border-b border-slate-700/60">
+    <div className="overflow-hidden">
+      <div className="flex items-center gap-1.5 p-2 bg-civic-surface-secondary border-b border-civic-border">
         {VIEW_MODES.map(({ id, label, icon: Icon }) => {
           const disabled = id === 'street-view' && streetViewAvailable === false;
+          const active = mode === id;
           return (
             <button
               key={id}
               onClick={() => !disabled && setMode(id)}
               disabled={disabled}
-              className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-md transition-colors ${
-                mode === id ? 'bg-emerald-700 text-white' : 'text-slate-400 hover:text-white'
+              aria-pressed={active}
+              className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40 ${
+                active ? 'bg-civic-accent text-white' : 'text-civic-text-muted hover:text-civic-text'
               } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}>
               <Icon className="w-3 h-3" /> {label}
             </button>
@@ -125,32 +127,38 @@ export default function PresentDayView({ location }) {
         {mode === 'street-view' && streetViewAvailable && (
           <button
             onClick={() => setHeading(h => (h + 45) % 360)}
-            className="ml-auto flex items-center gap-1 text-[11px] px-2 py-1 rounded-md text-slate-400 hover:text-white">
+            aria-label="Rotate Street View 45 degrees"
+            className="ml-auto flex items-center gap-1 text-[11px] px-2 py-1 rounded-md text-civic-text-muted hover:text-civic-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40">
             <RotateCw className="w-3 h-3" /> Rotate
           </button>
         )}
       </div>
 
-      <div className="relative h-[160px] bg-slate-800">
+      <div className="relative h-[160px] bg-civic-surface-secondary">
         {!loaded && !loadError && (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+          <div className="absolute inset-0 flex items-center justify-center text-civic-text-muted">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         )}
         {loadError && loadError !== 'not-configured' && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-rose-400 px-4 text-center">
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-civic-risk-high px-4 text-center" role="alert">
             Google Maps failed to load: {loadError}
           </div>
         )}
         {streetViewAvailable === null && mode === 'street-view' && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500 gap-1.5">
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-civic-text-muted gap-1.5">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking Street View coverage…
+          </div>
+        )}
+        {streetViewAvailable === false && mode === 'street-view' && (
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-civic-text-muted px-4 text-center">
+            Street View is not available for this location.
           </div>
         )}
         <div ref={containerRef} className="w-full h-full" />
       </div>
 
-      <div className="px-3 py-2 bg-slate-800/40 text-[11px] text-slate-500">
+      <div className="px-3 py-2 bg-civic-surface-secondary text-[11px] text-civic-text-muted">
         {location.formattedAddress} · {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
       </div>
     </div>
