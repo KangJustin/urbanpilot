@@ -1,11 +1,16 @@
 import React from 'react';
 import { Card, CardContent } from './ui/card';
 
+function fmtUsd(n) {
+  return n == null ? 'N/A' : `$${n.toLocaleString('en-US')}`;
+}
+
 // One card per specialist agent. Shows real findings/summary only — "No score yet" /
 // "Run an analysis..." placeholders instead of fabricated numbers when there's no real data.
 export default function AgentCard({
   icon: Icon, iconBg, iconColor, scoreColor, label, score, bullets, summary,
   transitAvailable, transitData,
+  censusAvailable, censusData,
 }) {
   return (
     <Card>
@@ -57,10 +62,37 @@ export default function AgentCard({
                 <span className="text-slate-500 shrink-0">•</span>Routes nearby: {transitData?.uniqueRoutes800m}
               </li>
               <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
-                <span className="text-slate-500 shrink-0">•</span>Nearest hub: {transitData?.nearestHub?.name} ({transitData?.nearestHub?.distanceM}m)
+                <span className="text-slate-500 shrink-0">•</span>Nearest transit hub: {transitData?.nearestHub?.name} ({transitData?.nearestHub?.distanceM}m)
               </li>
               <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
-                <span className="text-slate-500 shrink-0">•</span>Modes: {transitData?.modes800m?.join(', ')}
+                <span className="text-slate-500 shrink-0">•</span>Transit modes: {transitData?.modes800m?.join(', ')}
+              </li>
+            </ul>
+          </div>
+        )}
+        {censusAvailable === true && (
+          <div className="mt-3 pt-3 border-t border-slate-700/50">
+            <div className="flex items-center justify-between mb-1.5 gap-2">
+              <span className="text-[11px] font-medium text-slate-400">Verified Housing ({censusData?.source || 'ACS 5-Year'})</span>
+              <span className="inline-flex items-center rounded-full border border-emerald-700/40 bg-emerald-950/30 px-2 py-0.5 text-[10px] font-medium text-emerald-400 shrink-0">
+                Verified Data
+              </span>
+            </div>
+            <ul className="space-y-1">
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>Median income: {fmtUsd(censusData?.medianIncome)}
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>Median rent: {fmtUsd(censusData?.medianRent)}
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>Vacancy rate: {censusData?.vacancyRate}%
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>Renter %: {censusData?.renterPercent}%
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>Housing units: {censusData?.housingUnits}
               </li>
             </ul>
           </div>

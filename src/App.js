@@ -410,7 +410,8 @@ export default function App() {
                   score={accessibilityAgent?.score} bullets={accessibilityAgent?.findings} summary={accessibilityAgent?.summary}
                   transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData} />
                 <AgentCard label="Housing Agent" icon={Building2} iconBg="bg-amber-900/40" iconColor="text-amber-400" scoreColor="text-amber-400"
-                  score={housingAgent?.score} bullets={housingAgent?.findings} summary={housingAgent?.summary} />
+                  score={housingAgent?.score} bullets={housingAgent?.findings} summary={housingAgent?.summary}
+                  censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData} />
                 <AgentCard label="Urban Design Agent" icon={Compass} iconBg="bg-violet-900/40" iconColor="text-violet-400" scoreColor="text-violet-400"
                   score={null} bullets={urbanDesignAgent?.strategy?.immediate} summary={urbanDesignAgent?.summary} />
 
