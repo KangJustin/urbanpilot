@@ -420,7 +420,8 @@ export default function App() {
                   <BarChart3 className="w-3.5 h-3.5" /> AI Agents
                 </div>
                 <AgentCard label="Climate Agent" icon={ThermometerSun} iconBg="bg-emerald-900/40" iconColor="text-emerald-400" scoreColor="text-emerald-400"
-                  score={climateAgent?.score} bullets={climateAgent?.findings} summary={climateAgent?.summary} />
+                  score={climateAgent?.score} bullets={climateAgent?.findings} summary={climateAgent?.summary}
+                  climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData} />
                 <AgentCard label="Accessibility Agent" icon={Bike} iconBg="bg-sky-900/40" iconColor="text-sky-400" scoreColor="text-sky-400"
                   score={accessibilityAgent?.score} bullets={accessibilityAgent?.findings} summary={accessibilityAgent?.summary}
                   transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData} />
