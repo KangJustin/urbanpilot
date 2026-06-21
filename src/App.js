@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ThermometerSun, Bike, Building2, Compass,
   CheckCircle2, Loader2, Clock,
-  BarChart3, Sparkles,
+  Sparkles,
   Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog,
 } from 'lucide-react';
 import {
@@ -12,13 +11,11 @@ import {
 import PresentDayView from './components/PresentDayView';
 import TopHeader from './components/TopHeader';
 import ControlStrip from './components/ControlStrip';
-import AgentCard from './components/AgentCard';
+import DataMethodologySection from './components/DataMethodologySection';
 import ScoreBreakdownPanel from './components/ScoreBreakdownPanel';
 import CurrentConditionsPanel from './components/CurrentConditionsPanel';
-import RisksPanel from './components/RisksPanel';
-import RecommendationsPanel from './components/RecommendationsPanel';
+import PlanningFindings from './components/PlanningFindings';
 import MainMapPanel from './components/MainMapPanel';
-import InterventionsPanel from './components/InterventionsPanel';
 import AIAssistantPanel from './components/AIAssistantPanel';
 
 // Placeholder shown before the user searches for a location. Never re-substituted after a
@@ -369,33 +366,14 @@ export default function App() {
             )}
 
             {analysisState === 'complete' && (
-              <>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 px-1">
-                  <BarChart3 className="w-3.5 h-3.5" /> AI Agents
-                </div>
-                <AgentCard label="Climate Agent" icon={ThermometerSun} iconBg="bg-emerald-900/40" iconColor="text-emerald-400" scoreColor="text-emerald-400"
-                  score={climateAgent?.score} bullets={climateAgent?.findings} summary={climateAgent?.summary}
-                  climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData} />
-                <AgentCard label="Accessibility Agent" icon={Bike} iconBg="bg-sky-900/40" iconColor="text-sky-400" scoreColor="text-sky-400"
-                  score={accessibilityAgent?.score} bullets={accessibilityAgent?.findings} summary={accessibilityAgent?.summary}
-                  transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData} />
-                <AgentCard label="Housing Agent" icon={Building2} iconBg="bg-amber-900/40" iconColor="text-amber-400" scoreColor="text-amber-400"
-                  score={housingAgent?.score} bullets={housingAgent?.findings} summary={housingAgent?.summary}
-                  censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData} />
-                <AgentCard label="Urban Design Agent" icon={Compass} iconBg="bg-violet-900/40" iconColor="text-violet-400" scoreColor="text-violet-400"
-                  score={null} bullets={urbanDesignAgent?.strategy?.immediate} summary={urbanDesignAgent?.summary} />
-
-                {data.currentConditions?.overallScore != null && (
-                  <div className="bg-slate-800/50 border border-emerald-700/40 rounded-lg px-4 py-3 flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Overall Score</span>
-                    <span className="text-lg font-bold text-emerald-400">{data.currentConditions.overallScore}<span className="text-xs text-slate-500 font-normal">/100</span></span>
-                  </div>
-                )}
-
-                <div className="text-[11px] text-slate-700 pb-2">
-                  {data.dataDisclosure?.limitations?.[0]}
-                </div>
-              </>
+              <DataMethodologySection
+                climateAgent={climateAgent}
+                accessibilityAgent={accessibilityAgent}
+                housingAgent={housingAgent}
+                urbanDesignAgent={urbanDesignAgent}
+                overallScore={data.currentConditions?.overallScore}
+                limitationsText={data.dataDisclosure?.limitations?.[0]}
+              />
             )}
           </div>
         </div>
@@ -432,9 +410,7 @@ export default function App() {
                 censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData}
               />
               <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
-              <RisksPanel risks={allRisks} />
-              <RecommendationsPanel recommendations={allRecs} />
-              <InterventionsPanel recommendations={allRecs} />
+              <PlanningFindings risks={allRisks} recommendations={allRecs} />
             </>
           ) : (
             <div className="flex flex-col items-center justify-center text-center h-full text-slate-500 px-2">
