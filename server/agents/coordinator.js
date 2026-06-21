@@ -84,6 +84,7 @@ async function runAnalysis(request) {
     'Google Places location data (address, coordinates)',
     'OpenStreetMap/CARTO basemap',
     ...(housing.censusAvailable ? [`U.S. Census Bureau ${housing.censusData?.source || 'ACS 5-Year'} (block group ${housing.censusData?.geography?.geoid || 'unknown'})`] : []),
+    ...(accessibility.transitAvailable ? ['511 SF Bay Regional GTFS'] : []),
   ];
 
   const estimatedData = [
@@ -91,6 +92,9 @@ async function runAnalysis(request) {
   ];
   if (!housing.censusAvailable) {
     estimatedData.push('Housing baseline statistics (Census ACS unavailable)');
+  }
+  if (!accessibility.transitAvailable) {
+    estimatedData.push('Transit access statistics (511 SF Bay GTFS unavailable for this location)');
   }
 
   return {
@@ -112,8 +116,10 @@ async function runAnalysis(request) {
       realDataUsed,
       estimatedData,
       limitations: [
-        housing.censusAvailable
-          ? 'Scores and planning recommendations are AI-generated for exploration. Census ACS housing metrics are verified when censusAvailable is true.'
+        housing.censusAvailable || accessibility.transitAvailable
+          ? 'Scores and planning recommendations are AI-generated for exploration. '
+            + 'Census ACS housing metrics are verified when censusAvailable is true. '
+            + '511 SF Bay transit proximity metrics are verified when transitAvailable is true.'
           : 'Values are AI-generated estimates for planning exploration. Not verified planning data.',
       ],
     },
