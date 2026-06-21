@@ -5,12 +5,20 @@ function fmtUsd(n) {
   return n == null ? 'N/A' : `$${n.toLocaleString('en-US')}`;
 }
 
+// Climate verified fields can each be independently missing (Open-Meteo/FEMA/NLCD are three
+// separate lookups) — never render a bare 0/null/undefined/NaN as if it were a real value.
+function fmtField(value, { suffix = '', round = false } = {}) {
+  if (value == null || Number.isNaN(value)) return 'Not reported';
+  return `${round ? Math.round(value) : value}${suffix}`;
+}
+
 // One card per specialist agent. Shows real findings/summary only — "No score yet" /
 // "Run an analysis..." placeholders instead of fabricated numbers when there's no real data.
 export default function AgentCard({
   icon: Icon, iconBg, iconColor, scoreColor, label, score, bullets, summary,
   transitAvailable, transitData,
   censusAvailable, censusData,
+  climateAvailable, climateData,
 }) {
   return (
     <Card>
@@ -93,6 +101,33 @@ export default function AgentCard({
               </li>
               <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
                 <span className="text-slate-500 shrink-0">•</span>Housing units: {censusData?.housingUnits}
+              </li>
+            </ul>
+          </div>
+        )}
+        {climateAvailable === true && (
+          <div className="mt-3 pt-3 border-t border-slate-700/50">
+            <div className="flex items-center justify-between mb-1.5 gap-2">
+              <span className="text-[11px] font-medium text-slate-400">Verified Climate Data</span>
+              <span className="inline-flex items-center rounded-full border border-emerald-700/40 bg-emerald-950/30 px-2 py-0.5 text-[10px] font-medium text-emerald-400 shrink-0">
+                Verified Data
+              </span>
+            </div>
+            <ul className="space-y-1">
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>Temperature: {fmtField(climateData?.temperatureF, { suffix: '°F', round: true })}
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>AQI: {fmtField(climateData?.usAqi)}{climateData?.usAqi != null && climateData?.aqiCategory ? ` (${climateData.aqiCategory})` : ''}
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>FEMA Flood Zone: {fmtField(climateData?.femaFloodZone)}
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>FEMA Flood Risk: {fmtField(climateData?.femaFloodRisk)}
+              </li>
+              <li className="text-[11px] text-slate-300 leading-snug flex gap-1.5">
+                <span className="text-slate-500 shrink-0">•</span>Tree Canopy: {fmtField(climateData?.treeCanopyPercent, { suffix: '%' })}
               </li>
             </ul>
           </div>
