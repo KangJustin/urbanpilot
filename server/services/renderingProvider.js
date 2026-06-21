@@ -82,6 +82,12 @@ async function generateRendering({ prompt, referenceImage }) {
   const referenceUrl = resolveReferenceImage(referenceImage);
   const fullPrompt = referenceUrl ? `${referenceUrl} ${wrappedPrompt} --iw 1.5` : wrappedPrompt;
 
+  // The scenario year (2026/2040/2075) is embedded in the prompt text itself (vision.js writes
+  // "...in ${year}, ..." directly into visualizationPrompt), so logging the final prompt here
+  // covers all scenarios without needing a year field on the /api/visualize request — no API
+  // contract change required.
+  console.log('[rendering] Final prompt sent to Midjourney:\n', fullPrompt);
+
   try {
     const { imageUrl, jobId, webUrl } = await midjourneyService.generateImage(fullPrompt);
     return { imageUrl, jobId, webUrl, provider: 'midjourney' };
@@ -91,6 +97,7 @@ async function generateRendering({ prompt, referenceImage }) {
         '[rendering] reference image fetch failed at Midjourney, retrying text-only with fidelity wrapper:',
         err.message,
       );
+      console.log('[rendering] Final prompt sent to Midjourney (text-only retry):\n', wrappedPrompt);
       const { imageUrl, jobId, webUrl } = await midjourneyService.generateImage(wrappedPrompt);
       return { imageUrl, jobId, webUrl, provider: 'midjourney' };
     }

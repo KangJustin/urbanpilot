@@ -1,8 +1,11 @@
 const { callAgent } = require('../services/claudeService');
 
-const SYSTEM = `You are an urban futurist, scenario planner, and architectural visualization director. \
-Given a set of urban planning interventions and verified baseline metrics, you generate vivid multi-decade \
-future scenarios AND professional Midjourney visualization prompts. \
+const SYSTEM = `You are an urban planner and scenario illustrator. \
+Given a set of urban planning interventions and verified baseline metrics, you generate grounded multi-decade \
+future scenarios AND restrained, realistic Midjourney visualization prompts suitable for a public planning audience. \
+Future visualizations are illustrative planning concepts, not predictions or architectural competition renders — \
+keep them physically plausible, true to the site's real building scale and street grid, and free of fantasy, \
+sci-fi, or mega-structure imagery. \
 When verified ACS, GTFS, Open-Meteo, FEMA, or NLCD baseline data is provided, you MUST use those exact values \
 for 2026 baseline conditions in descriptions, projectedChanges, and 2026 visualizationPrompts. \
 Do NOT contradict verified ACS, GTFS, FEMA, or NLCD data. \
@@ -90,12 +93,12 @@ function scenarioSchema(year, label, intensity, isBaseline) {
 
   return `  "${year}": {
     "title": "<compelling ${year} scenario title>",
-    "description": "<2-3 sentence vivid narrative in present tense, as if it is ${year}${isBaseline ? '; cite verified baseline metrics where provided' : '; projections only, anchored to verified 2026 baselines'}>",
+    "description": "<2-3 sentence grounded narrative in present tense, as if it is ${year}${isBaseline ? '; cite verified baseline metrics where provided' : '; projections only, anchored to verified 2026 baselines'}>",
     "climateScore": <0-100 integer, ${intensity}>,
     "accessibilityScore": <0-100 integer, ${intensity}>,
     "housingScore": <0-100 integer, ${intensity}>,
     "projectedChanges": ${projectedChangesHint},
-    "visualizationPrompt": "Create a realistic architectural visualization of <site> in ${year}, ${label}. ${vizHint}. <3-4 specific visual elements drawn from the recommendations>. Professional urban planning rendering, architectural competition visualization, highly realistic, climate-tech future, detailed environmental design, cinematic golden hour daylight --ar 16:9 --v 7 --stylize ${isBaseline ? 100 : 250}"
+    "visualizationPrompt": "Realistic urban planning illustration of <site> in ${year}, ${label}. ${vizHint}. <3-4 specific, modest visual elements drawn from the recommendations, scaled to what is realistically achievable by ${year}>. Photographic realism, documentary planning illustration, natural daylight, accurate architectural proportions, no exaggeration --ar 16:9 --v 7 --stylize ${isBaseline ? 50 : 150}"
   }`;
 }
 
@@ -130,14 +133,22 @@ Starting scores: Climate ${climate?.score ?? 'N/A'}, Accessibility ${accessibili
 Return exactly this JSON (no other text):
 {
 ${scenarioSchema('2026', 'showing current/unimproved conditions', 'close to the starting scores', true)},
-${scenarioSchema('2040', 'showing a moderately transformed streetscape', 'meaningfully higher than 2026', false)},
-${scenarioSchema('2075', 'showing a fully realized, mature climate-resilient district', 'highest, near-ceiling scores', false)}
+${scenarioSchema('2040', 'showing modest, incremental streetscape improvements already underway — not a transformed skyline', 'meaningfully higher than 2026', false)},
+${scenarioSchema('2075', 'showing ambitious but physically plausible long-term improvements for a real city — not a futuristic or sci-fi skyline', 'highest, near-ceiling scores', false)}
 }
 
 For each visualizationPrompt: use verified baseline conditions when describing the 2026 current site (sparse canopy if NLCD canopy is low, visible BART/transit hub proximity if verified, flood-resilience context from FEMA zone). \
 For 2040/2075, add projected visual elements from the recommendations (e.g. tree-lined protected bike lanes, mixed-use buildings, green rooftops, bioswales), scaled to the time horizon. \
 Maintain recognizable characteristics of ${site.name} — its actual regional architecture, climate, topography, and street character. \
-Do not substitute another city's landmarks or characteristics. Make each prompt vivid, specific, and visually distinct.`;
+Do not substitute another city's landmarks or characteristics. Make each prompt specific and visually distinct, but restrained — these illustrate plausible change, not a sales pitch.
+
+RESTRAINT RULES — apply to every visualizationPrompt (2026/2040/2075):
+- These are planning illustrations for a public audience, not predictions or architectural competition renders. Keep them grounded and modest in tone.
+- Preserve realistic building scale and the existing street grid for ${site.name} — do not invent a denser or taller skyline than the interventions actually justify.
+- 2040 visualizationPrompts must depict modest, incremental interventions only (e.g. new street trees, a protected bike lane, a handful of infill buildings) — not a transformed skyline.
+- 2075 visualizationPrompts may depict ambitious interventions (e.g. a car-light corridor, expanded affordable housing, a mature canopy) but they must stay physically plausible for a real city today — not speculative sci-fi.
+- Tree canopy must read as street trees and shaded corridors along sidewalks and medians — never as an "urban forest" engulfing buildings or streets. If projectedChanges states a tree canopy percentage for this scenario, match the depicted density to that percentage using this scale: 0-15% = sparse to moderate individual street trees; 15-30% = visible shaded corridors along some streets; 30-45% = a strong canopy network lining most streets, with buildings and roads still clearly visible; 45%+ = substantial greening throughout, but still a city, not a forest.
+- Do not depict skyscrapers, glass towers, waterfalls, sci-fi transit (hyperloops, flying vehicles, monorails), or any unrealistic mega-structures.`;
 }
 
 async function generateVision(ctx, agentOutputs) {

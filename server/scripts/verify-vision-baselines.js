@@ -133,5 +133,52 @@ function assertContains(text, needle, label) {
     process.exit(1);
   }
 
+  // Restraint checks (exaggerated-imagery fix) — banned terms must never appear in the 2040/2075
+  // visualizationPrompt, and the prompt must carry the lowered --stylize value, not the old 250.
+  const BANNED_TERMS = [
+    'skyscraper', 'glass tower', 'waterfall', 'hyperloop', 'flying vehicle', 'flying car',
+    'monorail', 'megastructure', 'mega-structure', 'sci-fi', 'futuristic skyline', 'utopia',
+  ];
+
+  console.log('\n========== 2040/2075 restraint checks ==========\n');
+  let restraintFailed = false;
+  for (const year of ['2040', '2075']) {
+    const vp = scenarios[year]?.visualizationPrompt || '';
+    console.log(`--- ${year} visualizationPrompt ---\n${vp}\n`);
+
+    const lower = vp.toLowerCase();
+    // Split into clauses on sentence/clause boundaries so a negation anywhere in the same clause
+    // counts — e.g. "no skyscrapers or glass towers" negates "glass towers" even though "no" is
+    // several words earlier, separated by another listed item.
+    const clauses = lower.split(/[.;—]\s*|,\s*(?=no |not |without |never )/);
+    const NEGATION_WORDS = ['no ', 'not ', 'without ', 'never '];
+    const hit = BANNED_TERMS.find((term) => {
+      if (!lower.includes(term)) return false;
+      const clause = clauses.find((c) => c.includes(term));
+      const negated = clause != null && NEGATION_WORDS.some((w) => clause.includes(w));
+      return !negated; // only a real hit if NOT explicitly negated/excluded in its clause
+    });
+    if (hit) {
+      console.error(`FAIL: ${year} visualizationPrompt contains banned term "${hit}" (not negated)`);
+      restraintFailed = true;
+    } else {
+      console.log(`OK: ${year} visualizationPrompt has no (non-negated) banned exaggeration terms`);
+    }
+
+    if (/--stylize\s+250\b/.test(vp)) {
+      console.error(`FAIL: ${year} visualizationPrompt still uses the old --stylize 250`);
+      restraintFailed = true;
+    } else if (/--stylize\s+150\b/.test(vp)) {
+      console.log(`OK: ${year} visualizationPrompt uses the lowered --stylize 150`);
+    } else {
+      console.warn(`WARN: ${year} visualizationPrompt --stylize value not found/unexpected`);
+    }
+  }
+
+  if (restraintFailed) {
+    console.error('\nFAIL: restraint checks did not pass — see above.');
+    process.exit(1);
+  }
+
   console.log('\nVerification complete.');
 })();

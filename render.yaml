@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: urbanpilot-backend
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CENSUS_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_SERVER_API_KEY
+        sync: false
+      - key: TRANSIT_511_API_KEY
+        sync: false
+      # JSON content of server/.mcp-auth/midjourney.json from a machine that has already
+      # completed the one-time interactive Midjourney OAuth flow. Lets this headless deploy
+      # start already-authenticated instead of trying (and failing) to open a browser itself.
+      - key: MIDJOURNEY_TOKEN_CACHE
+        sync: false
+      # Set after the frontend service below exists and its URL is known — see deploy notes.
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+  - type: web
+    name: urbanpilot-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./build
+    envVars:
+      - key: REACT_APP_GOOGLE_MAPS_API_KEY
+        sync: false
+      # Set after the backend service above exists and its URL is known — see deploy notes.
+      # CRA bakes this in at build time, so changing it requires a redeploy/rebuild, not just
+      # an env var update.
+      - key: REACT_APP_API_URL
+        sync: false

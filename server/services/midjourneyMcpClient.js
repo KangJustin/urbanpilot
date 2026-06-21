@@ -19,6 +19,27 @@ const REDIRECT_PORT = Number(process.env.MIDJOURNEY_OAUTH_PORT) || 8090;
 const REDIRECT_URL = `http://localhost:${REDIRECT_PORT}/callback`;
 const TOKEN_STORE = path.join(__dirname, '..', '.mcp-auth', 'midjourney.json');
 
+// On a fresh deploy (e.g. Render) there's no disk-persisted token from a prior interactive
+// auth, and a headless container can't open a browser to do that auth itself. If an operator
+// has already completed the one-time auth locally, MIDJOURNEY_TOKEN_CACHE can carry that same
+// cached file's JSON content so the deployed instance starts already-authenticated. No-op
+// (and no behavior change) when the file already exists or the env var isn't set — this is
+// exactly today's local-dev path.
+function seedTokenCacheFromEnv() {
+  if (fs.existsSync(TOKEN_STORE)) return;
+  const seed = process.env.MIDJOURNEY_TOKEN_CACHE;
+  if (!seed) return;
+  try {
+    JSON.parse(seed); // validate before writing — a malformed seed should not silently corrupt auth
+    fs.mkdirSync(path.dirname(TOKEN_STORE), { recursive: true });
+    fs.writeFileSync(TOKEN_STORE, seed);
+    console.log('[midjourney] Seeded token cache from MIDJOURNEY_TOKEN_CACHE env var.');
+  } catch (err) {
+    console.warn('[midjourney] MIDJOURNEY_TOKEN_CACHE is not valid JSON, ignoring:', err.message);
+  }
+}
+seedTokenCacheFromEnv();
+
 function openBrowser(url) {
   const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
   exec(`${cmd} "${url}"`, () => {});
