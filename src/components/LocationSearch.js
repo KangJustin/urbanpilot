@@ -105,7 +105,7 @@ export default function LocationSearch({ onLocationSelected, compact = false }) 
       )}
 
       {open && suggestions.length > 0 && (
-        <div className="absolute z-50 mt-1.5 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-[2000] mt-1.5 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
           {suggestions.map(s => (
             <button
               key={s.placeId}
