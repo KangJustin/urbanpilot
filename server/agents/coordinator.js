@@ -83,6 +83,7 @@ async function runAnalysis(request) {
   const realDataUsed = [
     'Google Places location data (address, coordinates)',
     'OpenStreetMap/CARTO basemap',
+    ...(climate.climateAvailable ? ['Open-Meteo Weather API', 'Open-Meteo Air Quality API'] : []),
     ...(housing.censusAvailable ? [`U.S. Census Bureau ${housing.censusData?.source || 'ACS 5-Year'} (block group ${housing.censusData?.geography?.geoid || 'unknown'})`] : []),
     ...(accessibility.transitAvailable ? ['511 SF Bay Regional GTFS'] : []),
   ];
@@ -90,6 +91,9 @@ async function runAnalysis(request) {
   const estimatedData = [
     'All scores, findings, and recommendations are AI-generated estimates based on Claude\'s knowledge of the site',
   ];
+  if (!climate.climateAvailable) {
+    estimatedData.push('Current weather and air quality (Open-Meteo unavailable)');
+  }
   if (!housing.censusAvailable) {
     estimatedData.push('Housing baseline statistics (Census ACS unavailable)');
   }
@@ -116,8 +120,9 @@ async function runAnalysis(request) {
       realDataUsed,
       estimatedData,
       limitations: [
-        housing.censusAvailable || accessibility.transitAvailable
+        climate.climateAvailable || housing.censusAvailable || accessibility.transitAvailable
           ? 'Scores and planning recommendations are AI-generated for exploration. '
+            + 'Open-Meteo current weather and US AQI are verified when climateAvailable is true. '
             + 'Census ACS housing metrics are verified when censusAvailable is true. '
             + '511 SF Bay transit proximity metrics are verified when transitAvailable is true.'
           : 'Values are AI-generated estimates for planning exploration. Not verified planning data.',
