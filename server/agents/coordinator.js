@@ -80,10 +80,18 @@ async function runAnalysis(request) {
     ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
     : null;
 
+  const hasFemaData = climate.climateData?.femaFloodZone != null;
+
   const realDataUsed = [
     'Google Places location data (address, coordinates)',
     'OpenStreetMap/CARTO basemap',
-    ...(climate.climateAvailable ? ['Open-Meteo Weather API', 'Open-Meteo Air Quality API'] : []),
+    ...(climate.climateAvailable && climate.climateData?.temperatureF != null
+      ? ['Open-Meteo Weather API']
+      : []),
+    ...(climate.climateAvailable && climate.climateData?.usAqi != null
+      ? ['Open-Meteo Air Quality API']
+      : []),
+    ...(hasFemaData ? ['FEMA National Flood Hazard Layer'] : []),
     ...(housing.censusAvailable ? [`U.S. Census Bureau ${housing.censusData?.source || 'ACS 5-Year'} (block group ${housing.censusData?.geography?.geoid || 'unknown'})`] : []),
     ...(accessibility.transitAvailable ? ['511 SF Bay Regional GTFS'] : []),
   ];
@@ -92,7 +100,14 @@ async function runAnalysis(request) {
     'All scores, findings, and recommendations are AI-generated estimates based on Claude\'s knowledge of the site',
   ];
   if (!climate.climateAvailable) {
-    estimatedData.push('Current weather and air quality (Open-Meteo unavailable)');
+    estimatedData.push('Current weather, air quality, and flood zone (Open-Meteo/FEMA unavailable)');
+  } else {
+    if (climate.climateData?.temperatureF == null && climate.climateData?.usAqi == null) {
+      estimatedData.push('Current weather and air quality (Open-Meteo unavailable)');
+    }
+    if (!hasFemaData) {
+      estimatedData.push('FEMA flood zone (NFHL unavailable for this location)');
+    }
   }
   if (!housing.censusAvailable) {
     estimatedData.push('Housing baseline statistics (Census ACS unavailable)');
@@ -122,7 +137,8 @@ async function runAnalysis(request) {
       limitations: [
         climate.climateAvailable || housing.censusAvailable || accessibility.transitAvailable
           ? 'Scores and planning recommendations are AI-generated for exploration. '
-            + 'Open-Meteo current weather and US AQI are verified when climateAvailable is true. '
+            + 'Open-Meteo current weather and US AQI are verified when present in climateData. '
+            + 'FEMA NFHL flood zone and SFHA status are verified when present in climateData. '
             + 'Census ACS housing metrics are verified when censusAvailable is true. '
             + '511 SF Bay transit proximity metrics are verified when transitAvailable is true.'
           : 'Values are AI-generated estimates for planning exploration. Not verified planning data.',

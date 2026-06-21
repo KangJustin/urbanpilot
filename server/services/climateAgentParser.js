@@ -68,34 +68,51 @@ function parseClimateAgentJson(rawText) {
 }
 
 function buildClimateFallback({ site, goal, climateResult, rawText, parseError }) {
-  const c = climateResult.climateData;
-  const climateLine = climateResult.climateAvailable && c
-    ? `Current conditions: ${c.temperatureF != null ? `${Math.round(c.temperatureF)}°F` : 'N/A'}, `
-      + `${c.weatherDescription || 'Unknown'} (US AQI ${c.usAqi ?? 'N/A'}, ${c.aqiCategory || 'N/A'}). `
+  const c = climateResult.climateData || {};
+  const parts = [];
+  if (c.temperatureF != null) {
+    parts.push(`${Math.round(c.temperatureF)}°F ${c.weatherDescription || ''}`.trim());
+  }
+  if (c.usAqi != null) {
+    parts.push(`US AQI ${c.usAqi} (${c.aqiCategory || 'N/A'})`);
+  }
+  if (c.femaFloodZone != null) {
+    parts.push(`FEMA zone ${c.femaFloodZone} (${c.femaFloodRisk})`);
+  }
+  const climateLine = climateResult.climateAvailable && parts.length
+    ? `Verified conditions: ${parts.join('; ')}. `
     : '';
+
+  const findings = [];
+  if (climateResult.climateAvailable) {
+    if (c.temperatureF != null) {
+      findings.push(`Current temperature: ${Math.round(c.temperatureF)}°F (${c.weatherDescription}, Open-Meteo Weather API)`);
+    }
+    if (c.usAqi != null) {
+      findings.push(`Current US AQI: ${c.usAqi} (${c.aqiCategory}, Open-Meteo Air Quality API)`);
+    }
+    if (c.femaFloodZone != null) {
+      findings.push(
+        `FEMA flood zone: ${c.femaFloodZone} (${c.femaFloodRisk}, SFHA: ${c.inSpecialFloodHazardArea ? 'Yes' : 'No'}, FEMA NFHL)`,
+      );
+    }
+    findings.push('Heat island, canopy, and long-term resilience findings require a successful agent response.');
+    findings.push('Detailed AI climate findings could not be parsed — use verified climateData for current conditions.');
+  } else {
+    findings.push(
+      'Open-Meteo weather/AQI and FEMA flood zone data were not available for this location.',
+      'Climate findings require a successful agent response or verified data lookup.',
+      'Re-run analysis to retry interpretation.',
+      'Canopy and heat-island estimates are not included in this fallback.',
+    );
+  }
 
   return {
     score: 50,
     summary: `${climateLine}Automated climate interpretation was unavailable for ${site?.name || 'this site'}. `
       + `Planning goal: ${goal?.description || 'not specified'}. `
-      + 'Review verified Open-Meteo metrics below and re-run analysis if needed.',
-    findings: climateResult.climateAvailable
-      ? [
-        c.temperatureF != null
-          ? `Current temperature: ${Math.round(c.temperatureF)}°F (${c.weatherDescription}, Open-Meteo Weather API)`
-          : 'Current temperature unavailable from Open-Meteo.',
-        c.usAqi != null
-          ? `Current US AQI: ${c.usAqi} (${c.aqiCategory}, Open-Meteo Air Quality API)`
-          : 'Current US AQI unavailable from Open-Meteo.',
-        'Heat island, flood, canopy, and long-term resilience findings require a successful agent response.',
-        'Detailed AI climate findings could not be parsed — use verified climateData for current conditions.',
-      ]
-      : [
-        'Open-Meteo weather/AQI data was not available for this location.',
-        'Climate findings require a successful agent response or Open-Meteo lookup.',
-        'Re-run analysis to retry interpretation.',
-        'Flood, canopy, and heat-island estimates are not included in this fallback.',
-      ],
+      + 'Review verified Open-Meteo and FEMA metrics below and re-run analysis if needed.',
+    findings,
     risks: [
       {
         id: 'cr1',
