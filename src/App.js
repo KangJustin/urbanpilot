@@ -19,6 +19,7 @@ import RecommendationsPanel from './components/RecommendationsPanel';
 import MainMapPanel from './components/MainMapPanel';
 import InterventionsPanel from './components/InterventionsPanel';
 import AIAssistantPanel from './components/AIAssistantPanel';
+import CompressionBenchmarkPanel from './components/CompressionBenchmarkPanel';
 
 // Placeholder shown before the user searches for a location. Never re-substituted after a
 // real place is selected — see selectedLocation state in App().
@@ -484,6 +485,8 @@ export default function App() {
           )}
         </div>
       </div>
+
+      <CompressionBenchmarkPanel />
 
       <AIAssistantPanel
         chatMessages={chatMessages}
