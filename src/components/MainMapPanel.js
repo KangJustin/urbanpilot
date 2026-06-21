@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, AttributionControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
   Camera, Copy, Check, Sparkles, Loader2, TrendingUp, Layers, Maximize, ZoomIn, ZoomOut, LocateFixed,
@@ -89,8 +89,12 @@ export default function MainMapPanel({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 relative">
-        <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} className="z-0">
+        <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} className="z-0" attributionControl={false}>
           <RecenterMap center={center} zoom={15} />
+          {/* prefix={false} drops Leaflet's own "Leaflet |" credit — not license-required (Leaflet is
+              BSD-licensed). The OpenStreetMap/CARTO copyright text below is required by their license/ToS
+              and stays; see .leaflet-control-attribution in index.css for the smaller, muted styling. */}
+          <AttributionControl position="bottomright" prefix={false} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"

@@ -65,6 +65,19 @@
   filter: brightness(1.4) contrast(1.15) saturate(1.15);
 }
 
+/* Required OpenStreetMap/CARTO copyright notice, restyled smaller and muted to reduce visual
+   clutter — text content must stay per their license/ToS, only the styling changes here. */
+.leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.55) !important;
+  color: rgb(100, 116, 139) !important;
+  font-size: 9px !important;
+  padding: 1px 5px !important;
+  border-radius: 4px;
+}
+.leaflet-control-attribution a {
+  color: rgb(100, 116, 139) !important;
+}
+
 @keyframes site-pulse {
   0% { transform: scale(0.6); opacity: 0.6; }
   70% { transform: scale(2.2); opacity: 0; }
