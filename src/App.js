@@ -17,7 +17,7 @@ import ScoreBreakdownPanel from './components/ScoreBreakdownPanel';
 import RisksPanel from './components/RisksPanel';
 import RecommendationsPanel from './components/RecommendationsPanel';
 import MainMapPanel from './components/MainMapPanel';
-import InterventionCard from './components/InterventionCard';
+import InterventionsPanel from './components/InterventionsPanel';
 import AIAssistantPanel from './components/AIAssistantPanel';
 
 // Placeholder shown before the user searches for a location. Never re-substituted after a
@@ -457,6 +457,7 @@ export default function App() {
               <ScoreBreakdownPanel scenarios={data.scenarios} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
               <RisksPanel risks={allRisks} />
               <RecommendationsPanel recommendations={allRecs} />
+              <InterventionsPanel recommendations={allRecs} />
             </>
           ) : (
             <div className="flex flex-col items-center justify-center text-center h-full text-slate-500 px-2">
@@ -466,16 +467,6 @@ export default function App() {
           )}
         </div>
       </div>
-
-      {/* Bottom strip */}
-      {analysisState === 'complete' && allRecs.length > 0 && (
-        <div className="shrink-0 border-t border-slate-800 bg-slate-900 px-5 py-3">
-          <div className="text-xs font-medium text-slate-500 mb-2">Recommended Interventions</div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {allRecs.slice(0, 6).map(r => <InterventionCard key={r.id} rec={r} />)}
-          </div>
-        </div>
-      )}
 
       <AIAssistantPanel
         chatMessages={chatMessages}
