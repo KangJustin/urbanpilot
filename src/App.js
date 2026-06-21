@@ -290,6 +290,7 @@ export default function App() {
   const [userVisionText, setUserVisionText] = useState('');
   const [referenceImage, setReferenceImage] = useState(null);
   const [presentPhotoUrl, setPresentPhotoUrl] = useState(null);
+  const [presentPhotoSource, setPresentPhotoSource] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -299,19 +300,24 @@ export default function App() {
     return () => { cancelled = true; };
   }, [selectedLocation]);
 
-  // The real "now" photo for the 2026 scenario — Street View if covered, satellite otherwise.
-  // Displayed only; never sent to Midjourney or any other generator.
+  // The real "now" photo for the site — Street View if covered, satellite otherwise. Used to
+  // display the 2026 scenario, and (per explicit product decision, accepting the associated
+  // Google Maps Platform ToS risk) as the default Midjourney reference image for 2040/2075
+  // when the user hasn't uploaded their own photo.
   useEffect(() => {
     let cancelled = false;
     const { latitude, longitude } = selectedLocation;
     getStreetViewStatus(latitude, longitude)
       .then(({ available }) => {
         if (cancelled) return;
-        setPresentPhotoUrl(
-          available ? streetViewImageUrl(latitude, longitude) : satelliteImageUrl(latitude, longitude)
-        );
+        setPresentPhotoUrl(available ? streetViewImageUrl(latitude, longitude) : satelliteImageUrl(latitude, longitude));
+        setPresentPhotoSource(available ? 'google-street-view' : 'google-satellite');
       })
-      .catch(() => { if (!cancelled) setPresentPhotoUrl(satelliteImageUrl(latitude, longitude)); });
+      .catch(() => {
+        if (cancelled) return;
+        setPresentPhotoUrl(satelliteImageUrl(latitude, longitude));
+        setPresentPhotoSource('google-satellite');
+      });
     return () => { cancelled = true; };
   }, [selectedLocation]);
 
@@ -335,8 +341,13 @@ export default function App() {
     const prompt = userVisionText.trim()
       ? `${basePrompt} Additional requested changes: ${userVisionText.trim()}.`
       : basePrompt;
+    // Default to the real captured photo as the Midjourney reference unless the user uploaded
+    // their own — accepted product decision, not a per-image user consent checkbox.
+    const effectiveReferenceImage = referenceImage || (presentPhotoUrl
+      ? { imageUrl: presentPhotoUrl, source: presentPhotoSource, licenseConfirmed: true }
+      : null);
     try {
-      const { imageUrl } = await generateVisualization(prompt, referenceImage);
+      const { imageUrl } = await generateVisualization(prompt, effectiveReferenceImage);
       setVisualizedImages(prev => ({ ...prev, [year]: imageUrl }));
       setSelectedScenario(year);
     } catch (err) {
@@ -676,7 +687,7 @@ export default function App() {
                                   className="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 mb-2 resize-none placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
                                 />
                                 <div className="mb-2">
-                                  <ReferenceImageInput referenceImage={referenceImage} onReferenceImageChange={setReferenceImage} />
+                                  <ReferenceImageInput referenceImage={referenceImage} onReferenceImageChange={setReferenceImage} autoPhotoUrl={presentPhotoUrl} />
                                 </div>
                                 <button
                                   onClick={() => handleGenerateVisualization(data.scenarios[selectedScenario].visualizationPrompt, selectedScenario)}

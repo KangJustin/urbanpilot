@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Upload, Loader2, X, CheckCircle2 } from 'lucide-react';
 import { uploadReferenceImage } from '../services/analysisApi';
 
-export default function ReferenceImageInput({ referenceImage, onReferenceImageChange }) {
+export default function ReferenceImageInput({ referenceImage, onReferenceImageChange, autoPhotoUrl }) {
   const [licenseConfirmed, setLicenseConfirmed] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -58,6 +58,14 @@ export default function ReferenceImageInput({ referenceImage, onReferenceImageCh
 
   return (
     <div className="rounded-lg border border-slate-700/60 bg-slate-800/30 p-2.5">
+      {autoPhotoUrl && (
+        <div className="flex items-center gap-2 mb-2.5 pb-2.5 border-b border-slate-700/40">
+          <img src={autoPhotoUrl} alt="Site reference" className="w-8 h-8 rounded object-cover shrink-0" />
+          <div className="text-[10px] text-slate-500 leading-snug">
+            Using your site's real Street View/satellite photo as the reference by default. Upload your own below to override it.
+          </div>
+        </div>
+      )}
       <label className="flex items-start gap-2 text-[11px] text-slate-400 mb-2 cursor-pointer">
         <input
           type="checkbox"
