@@ -15,6 +15,23 @@ const STATUS = {
   unavailable: { icon: MinusCircle, tone: 'civic-unavailable', label: 'Unavailable' },
 };
 
+// Abbreviations in `source` get an accessible expansion via <abbr title>, per the redesign's
+// accessibility requirement that FEMA/NLCD/ACS/511 not be left as bare, unexplained acronyms.
+const ABBR_TITLES = {
+  FEMA: 'Federal Emergency Management Agency',
+  NLCD: 'National Land Cover Database',
+  ACS: 'American Community Survey',
+  511: '511 SF Bay regional transit data',
+};
+const ABBR_PATTERN = /\b(FEMA|NLCD|ACS|511)\b/g;
+
+function renderSource(source) {
+  const parts = source.split(ABBR_PATTERN);
+  return parts.map((part, i) => (ABBR_TITLES[part]
+    ? <abbr key={i} title={ABBR_TITLES[part]} className="no-underline">{part}</abbr>
+    : <React.Fragment key={i}>{part}</React.Fragment>));
+}
+
 // `source` is the specific provider (e.g. "Open-Meteo", "FEMA", "NLCD", "511",
 // "U.S. Census ACS") appended after the status label. Omit it for ai/unavailable, where there's
 // no specific external source to cite.
@@ -25,7 +42,7 @@ export default function ProvenanceChip({ status, source, className }) {
   return (
     <Badge tone={tone} className={className}>
       <Icon className="w-3 h-3" />
-      {source ? `${label} · ${source}` : label}
+      {source ? <>{label} · {renderSource(source)}</> : label}
     </Badge>
   );
 }

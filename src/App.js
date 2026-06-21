@@ -14,6 +14,7 @@ import TopHeader from './components/TopHeader';
 import ControlStrip from './components/ControlStrip';
 import AgentCard from './components/AgentCard';
 import ScoreBreakdownPanel from './components/ScoreBreakdownPanel';
+import CurrentConditionsPanel from './components/CurrentConditionsPanel';
 import RisksPanel from './components/RisksPanel';
 import RecommendationsPanel from './components/RecommendationsPanel';
 import MainMapPanel from './components/MainMapPanel';
@@ -425,6 +426,11 @@ export default function App() {
         <div className="w-[300px] shrink-0 bg-slate-900 border-l border-slate-800 overflow-y-auto px-4 py-4 space-y-3">
           {analysisState === 'complete' ? (
             <>
+              <CurrentConditionsPanel
+                climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData}
+                transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData}
+                censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData}
+              />
               <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
               <RisksPanel risks={allRisks} />
               <RecommendationsPanel recommendations={allRecs} />
