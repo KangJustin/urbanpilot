@@ -66,7 +66,14 @@ export default function ReferenceImageInput({ referenceImage, onReferenceImageCh
           </div>
         </div>
       )}
-      <label className="flex items-start gap-2 text-[11px] text-slate-400 mb-2 cursor-pointer">
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        disabled={!licenseConfirmed || uploading}
+        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mb-2">
+        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+        {uploading ? 'Uploading…' : 'Upload reference photo (optional)'}
+      </button>
+      <label className="flex items-start gap-2 text-[11px] text-slate-400 cursor-pointer">
         <input
           type="checkbox"
           checked={licenseConfirmed}
@@ -75,13 +82,6 @@ export default function ReferenceImageInput({ referenceImage, onReferenceImageCh
         />
         I confirm I own this photo or have the rights to use it as an AI reference image.
       </label>
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        disabled={!licenseConfirmed || uploading}
-        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-        {uploading ? 'Uploading…' : 'Upload reference photo (optional)'}
-      </button>
       <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} className="hidden" />
       {error && <div className="text-[11px] text-rose-400 mt-1.5">{error}</div>}
     </div>
