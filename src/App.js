@@ -5,7 +5,6 @@ import {
   BarChart3, Sparkles,
   Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog,
 } from 'lucide-react';
-import berkeleyData from './mock/berkeleyAnalysis.json';
 import {
   analyzeNeighborhood, generateVisualization, getConditions, askQuestion,
   getStreetViewStatus, streetViewImageUrl, satelliteImageUrl,
@@ -87,14 +86,6 @@ function getFloodRisk(climate) {
   if (!climate) return null;
   const risk = climate.risks?.find(r => /flood|stormwater|runoff/i.test(r.title));
   return risk ? severityLabel(risk.severity) : { label: 'Low', color: 'text-emerald-400' };
-}
-
-// The decorative intervention pins/overlay circles use real Downtown Berkeley street
-// coordinates and can't be procedurally generated for an arbitrary address — only show them
-// when the selected location actually is Berkeley.
-function isBerkeleyLocation(location) {
-  const text = `${location?.displayName || ''} ${location?.formattedAddress || ''}`.toLowerCase();
-  return text.includes('berkeley');
 }
 
 function AgentRow({ label, status }) {
@@ -218,19 +209,13 @@ export default function App() {
     setSelectedScenario(year);
   }
 
-  // Only use the bundled Berkeley demo content when nothing real has been searched yet.
-  // Once a real location is selected, every section (scores, scenarios, the map's 2040/2075
-  // image overlay) must stay empty until a fresh analysis actually completes for it — never
-  // let the canned Berkeley mock content bleed through under a different address.
-  const hasRealData = !!results || !selectedLocation.placeId;
-  const baseData = hasRealData ? (results || berkeleyData) : { agents: {}, scenarios: {}, dataDisclosure: {} };
-  // Site identity always follows the single source of truth (selectedLocation), even before
-  // an analysis has run for it — never let a stale Berkeley site name linger after a new search.
+  // No bundled demo content — every section (scores, scenarios, the map's 2040/2075 image
+  // overlay) stays empty until a real analysis actually completes. Site identity always follows
+  // the single source of truth (selectedLocation), whether or not an analysis has run for it yet.
+  const baseData = results || { agents: {}, scenarios: {}, dataDisclosure: {} };
   const data = {
     ...baseData,
-    site: selectedLocation.placeId
-      ? { name: selectedLocation.displayName || selectedLocation.formattedAddress, center: { latitude: selectedLocation.latitude, longitude: selectedLocation.longitude } }
-      : baseData.site,
+    site: { name: selectedLocation.displayName || selectedLocation.formattedAddress, center: { latitude: selectedLocation.latitude, longitude: selectedLocation.longitude } },
   };
   const heatRisk = getHeatRisk(data.agents?.climate);
   const floodRisk = getFloodRisk(data.agents?.climate);
@@ -272,7 +257,6 @@ export default function App() {
     });
 
     let apiResult = null;
-    let analyzeFailed = false;
     try {
       [apiResult] = await Promise.all([
         analyzeNeighborhood({
@@ -288,7 +272,6 @@ export default function App() {
         new Promise(resolve => setTimeout(resolve, 3700)),
       ]);
     } catch (err) {
-      analyzeFailed = true;
       console.error('Analysis request failed:', err.message);
     }
 
@@ -298,14 +281,9 @@ export default function App() {
       setResults(apiResult);
       setAnalysisError(null);
       setAnalysisState('complete');
-    } else if (analyzeFailed && !isBerkeleyLocation(selectedLocation)) {
-      // Don't silently fall back to stale Berkeley demo content for a real, different location.
+    } else {
       setAnalysisError('Analysis failed for this location. Please try again.');
       setAnalysisState('idle');
-    } else {
-      // Preserves the original Berkeley demo's graceful fallback behavior.
-      setAnalysisError(null);
-      setAnalysisState('complete');
     }
   };
 

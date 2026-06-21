@@ -3,15 +3,6 @@ const { analyzeAccessibility } = require('./accessibility');
 const { analyzeHousing } = require('./housing');
 const { synthesizeUrbanDesign } = require('./urbanDesign');
 const { generateVision } = require('./vision');
-const mockData = require('../../src/mock/berkeleyAnalysis.json');
-
-// The bundled mock data is Berkeley-specific demo content. Using it as a fallback for any
-// other location would silently show fabricated Berkeley numbers under a different address —
-// only fall back to it when the request actually is Berkeley (the original demo site).
-function isBerkeleySite(site) {
-  const text = `${site?.name || ''} ${site?.city || ''}`.toLowerCase();
-  return text.includes('berkeley');
-}
 
 function unavailableSection(label) {
   return {
@@ -38,21 +29,19 @@ function unavailableScenarios() {
 }
 
 async function runAnalysis(request) {
-  const berkeley = isBerkeleySite(request.site);
-
   // Run specialist agents in parallel
   const [climate, accessibility, housing] = await Promise.all([
     analyzeClimate(request).catch(err => {
       console.warn('Climate agent failed:', err.message);
-      return berkeley ? mockData.agents.climate : unavailableSection('Climate');
+      return unavailableSection('Climate');
     }),
     analyzeAccessibility(request).catch(err => {
       console.warn('Accessibility agent failed:', err.message);
-      return berkeley ? mockData.agents.accessibility : unavailableSection('Accessibility');
+      return unavailableSection('Accessibility');
     }),
     analyzeHousing(request).catch(err => {
       console.warn('Housing agent failed:', err.message);
-      return berkeley ? mockData.agents.housing : unavailableSection('Housing');
+      return unavailableSection('Housing');
     }),
   ]);
 
@@ -60,7 +49,7 @@ async function runAnalysis(request) {
   const urbanDesign = await synthesizeUrbanDesign(request, { climate, accessibility, housing })
     .catch(err => {
       console.warn('Urban design agent failed:', err.message);
-      return berkeley ? mockData.agents.urban_design : {
+      return {
         summary: 'Urban design synthesis is temporarily unavailable for this location.',
         strategy: { immediate: [], medium_term: [], long_term: [] },
         tradeoffs: [],
@@ -72,7 +61,7 @@ async function runAnalysis(request) {
   const scenarios = await generateVision(request, { climate, accessibility, housing, urbanDesign })
     .catch(err => {
       console.warn('Vision agent failed:', err.message);
-      return berkeley ? mockData.scenarios : unavailableScenarios();
+      return unavailableScenarios();
     });
 
   const validScores = [climate.score, accessibility.score, housing.score].filter(s => s != null);
