@@ -400,26 +400,10 @@ export default function App() {
               />
             </div>
 
+            {/* Directly under the map, not buried below Risks/Data & Methodology — this is the
+                button that actually produces the 2040/2075 image the map panel displays, so it
+                belongs next to the map, not several scrolls down. */}
             <div className="order-5 lg:col-start-2">
-              <ProjectedScenarioChanges data={data} selectedScenario={selectedScenario} presentPhotoSource={presentPhotoSource} />
-            </div>
-
-            <div className="order-6 lg:col-start-2">
-              <StreetViewPanel location={selectedLocation} />
-            </div>
-
-            <div className="order-7 lg:col-start-1">
-              <DataMethodologySection
-                climateAgent={climateAgent}
-                accessibilityAgent={accessibilityAgent}
-                housingAgent={housingAgent}
-                urbanDesignAgent={urbanDesignAgent}
-                overallScore={data.currentConditions?.overallScore}
-                limitationsText={data.dataDisclosure?.limitations?.[0]}
-              />
-            </div>
-
-            <div className="order-8 lg:col-start-1">
               <VisualizeStreetscapeAction
                 data={data}
                 selectedScenario={selectedScenario}
@@ -434,6 +418,25 @@ export default function App() {
                 referenceImage={referenceImage}
                 setReferenceImage={setReferenceImage}
                 presentPhotoUrl={presentPhotoUrl}
+              />
+            </div>
+
+            <div className="order-6 lg:col-start-2">
+              <ProjectedScenarioChanges data={data} selectedScenario={selectedScenario} presentPhotoSource={presentPhotoSource} />
+            </div>
+
+            <div className="order-7 lg:col-start-2">
+              <StreetViewPanel location={selectedLocation} />
+            </div>
+
+            <div className="order-8 lg:col-start-1">
+              <DataMethodologySection
+                climateAgent={climateAgent}
+                accessibilityAgent={accessibilityAgent}
+                housingAgent={housingAgent}
+                urbanDesignAgent={urbanDesignAgent}
+                overallScore={data.currentConditions?.overallScore}
+                limitationsText={data.dataDisclosure?.limitations?.[0]}
               />
             </div>
 
