@@ -16,7 +16,12 @@ export default function ScenarioTabs({ years, scenarios, selectedYear, onSelect 
             }`}>
             <div className={`text-xs font-bold ${selected ? 'text-white' : 'text-slate-300'}`}>{year === '2026' ? 'Current' : year}</div>
             {subtitle && (
-              <div className={`text-[10px] leading-tight max-w-[140px] truncate ${selected ? 'text-emerald-100' : 'text-slate-500'}`}>{subtitle}</div>
+              <div
+                className={`text-[10px] leading-tight transition-all duration-300 ${
+                  selected ? 'max-w-[260px] whitespace-normal text-emerald-100' : 'max-w-[140px] truncate text-slate-500'
+                }`}>
+                {subtitle}
+              </div>
             )}
           </button>
         );
