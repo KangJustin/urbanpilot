@@ -11,7 +11,7 @@ function extractJSON(text) {
   throw new Error('No valid JSON found in agent response');
 }
 
-async function callAgent(systemPrompt, userMessage, model = 'claude-sonnet-4-6', maxTokens) {
+async function callAgentRaw(systemPrompt, userMessage, model = 'claude-sonnet-4-6', maxTokens) {
   const response = await client.messages.create({
     model,
     max_tokens: maxTokens || (model.includes('haiku') ? 1024 : 2048),
@@ -26,6 +26,11 @@ async function callAgent(systemPrompt, userMessage, model = 'claude-sonnet-4-6',
   });
 
   const text = response.content[0].text;
+  return { text, model, stopReason: response.stop_reason };
+}
+
+async function callAgent(systemPrompt, userMessage, model = 'claude-sonnet-4-6', maxTokens) {
+  const { text } = await callAgentRaw(systemPrompt, userMessage, model, maxTokens);
   return extractJSON(text);
 }
 
@@ -46,4 +51,4 @@ async function callText(systemPrompt, userMessage, model = 'claude-sonnet-4-6', 
   return response.content[0].text.trim();
 }
 
-module.exports = { callAgent, callText };
+module.exports = { callAgent, callAgentRaw, callText, extractJSON };

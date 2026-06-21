@@ -80,6 +80,18 @@ async function runAnalysis(request) {
     ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
     : null;
 
+  const realDataUsed = [];
+  if (housing.censusAvailable) {
+    realDataUsed.push(`U.S. Census Bureau ${housing.censusData?.source || 'ACS 5-Year'} (block group ${housing.censusData?.geography?.geoid || 'unknown'})`);
+  }
+
+  const estimatedData = [
+    'Agent scores, risks, and recommendations are AI-generated interpretations',
+  ];
+  if (!housing.censusAvailable) {
+    estimatedData.push('Housing baseline statistics (Census ACS unavailable)');
+  }
+
   return {
     site: request.site,
     currentConditions: {
@@ -96,9 +108,9 @@ async function runAnalysis(request) {
     },
     scenarios,
     dataDisclosure: {
-      realDataUsed: ['OpenStreetMap street network', 'BART station location', 'City of Berkeley zoning reference'],
-      estimatedData: ['All scores are AI-generated estimates based on Claude\'s knowledge of the site'],
-      limitations: ['Values are AI-generated estimates for planning exploration. Not verified planning data.'],
+      realDataUsed,
+      estimatedData,
+      limitations: ['Scores and planning recommendations are AI-generated for exploration. Census ACS housing metrics are verified when censusAvailable is true.'],
     },
   };
 }

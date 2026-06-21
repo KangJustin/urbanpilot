@@ -33,4 +33,7 @@ app.listen(PORT, () => {
   if (!process.env.GOOGLE_MAPS_SERVER_API_KEY) {
     console.warn('Warning: GOOGLE_MAPS_SERVER_API_KEY not set — location search and present-day view will be unavailable');
   }
+  if (!process.env.CENSUS_API_KEY) {
+    console.warn('Warning: CENSUS_API_KEY not set — Housing Agent will run without verified ACS data');
+  }
 });
