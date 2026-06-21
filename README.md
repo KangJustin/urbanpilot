@@ -105,6 +105,25 @@ cd server && node index.js   # backend, http://localhost:3001
 The frontend hot-reloads on save. The backend doesn't — restart it after editing anything in
 `server/`. (`npm run dev` in `server/` uses `node --watch` if you'd rather it restart itself.)
 
+## Token compression benchmark (The Token Company)
+
+We measured [the-token-company](https://thetokencompany.dev)'s `with_compression()` wrapper
+against UrbanPilot's own real production prompts — real Anthropic API calls, real
+`response.usage.input_tokens`, no estimates. Two prompt shapes were tested against Downtown
+Berkeley: a structured JSON-schema generation prompt (the Housing Agent's verified-ACS-census
+prompt) and a long, prose-heavy context prompt (the Ask UrbanPilot AI assistant's context).
+
+| Prompt type | Raw Anthropic (input tokens) | + the-token-company | Reduction |
+|---|---|---|---|
+| Structured JSON-schema prompt (Housing Agent) | 924 | 888 | **3.9%** |
+| Long, prose-heavy context prompt (Ask AI) | 4,757 | 3,775 | **20.6%** |
+
+In both cases, compression came at no cost to output quality — every compressed response still
+parsed as valid structured JSON and cited the exact verified figures (Census income/rent, real
+risk severities, scenario specifics) from the source data, with no hallucination observed.
+The benchmark scripts that produced these numbers live in `server/scripts/compression-demo.js`,
+`compression_benchmark_ttc.py`, and `compression_benchmark_ttc_longcontext.py`.
+
 ## Known limitations
 
 - **No test suite.** `npm test` reports "No tests found" — this is the current state of the
