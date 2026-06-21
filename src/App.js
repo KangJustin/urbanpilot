@@ -11,6 +11,7 @@ import {
 } from './services/analysisApi';
 import PresentDayView from './components/PresentDayView';
 import TopHeader from './components/TopHeader';
+import ControlStrip from './components/ControlStrip';
 import AgentCard from './components/AgentCard';
 import ScoreBreakdownPanel from './components/ScoreBreakdownPanel';
 import RisksPanel from './components/RisksPanel';
@@ -323,49 +324,23 @@ export default function App() {
         WeatherIcon={WeatherIcon}
       />
 
+      <ControlStrip
+        goal={goal}
+        setGoal={setGoal}
+        years={SCENARIO_YEARS}
+        selectedScenario={selectedScenario}
+        selectScenario={selectScenario}
+        onAnalyze={handleAnalyze}
+        analyzing={analysisState === 'running'}
+        analyzeDisabled={!goal.trim() || analysisState === 'running'}
+        analysisError={analysisError}
+      />
+
       <div className="flex-1 flex overflow-hidden">
-        {/* Left content panel: present-day view, goal input, AI agent cards */}
+        {/* Left content panel: present-day view, AI agent cards */}
         <div className="w-[320px] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             <PresentDayView location={selectedLocation} />
-
-            <div>
-              <label className="block text-xs text-slate-500 mb-2">Planning goal</label>
-              <textarea
-                value={goal}
-                onChange={e => setGoal(e.target.value)}
-                placeholder="e.g. Add housing near transit while reducing heat and improving biking"
-                className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2.5 resize-none placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
-                rows={3}
-              />
-
-              <div className="flex items-center justify-between mt-3 mb-2">
-                <label className="text-xs text-slate-500">Target year</label>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {SCENARIO_YEARS.map(year => (
-                  <button
-                    key={year}
-                    onClick={() => selectScenario(year)}
-                    className={`py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      selectedScenario === year ? 'bg-emerald-600 text-white' : 'bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200'
-                    }`}>
-                    {year === '2026' ? 'Current' : year}
-                  </button>
-                ))}
-              </div>
-
-              <button onClick={handleAnalyze}
-                disabled={!goal.trim() || analysisState === 'running'}
-                className="mt-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-500 text-white">
-                {analysisState === 'running' ? 'Analyzing…' : 'Analyze'}
-              </button>
-              {analysisError && (
-                <div className="mt-2 text-xs text-rose-400 bg-rose-950/30 border border-rose-900/50 rounded-lg px-3 py-2">
-                  {analysisError}
-                </div>
-              )}
-            </div>
 
             {analysisState === 'idle' && (
               <div>

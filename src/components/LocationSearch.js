@@ -81,40 +81,47 @@ export default function LocationSearch({ onLocationSelected, compact = false }) 
     setError(null);
   }
 
+  const inputId = compact ? 'location-search-compact' : 'location-search';
+
   return (
     <div className="relative">
-      <div className={`flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-lg ${compact ? 'px-2.5 py-2' : 'px-3 py-2.5'}`}>
-        <Search className="w-4 h-4 text-slate-500 shrink-0" />
+      <label htmlFor={inputId} className="sr-only">Search for an address, neighborhood, landmark, or city</label>
+      <div className={`flex items-center gap-2 bg-civic-surface border border-civic-border rounded-lg focus-within:ring-2 focus-within:ring-civic-accent/40 focus-within:border-civic-accent ${compact ? 'px-2.5 py-2' : 'px-3 py-2.5'}`}>
+        <Search className="w-4 h-4 text-civic-text-muted shrink-0" />
         <input
+          id={inputId}
           value={query}
           onChange={handleChange}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           placeholder={compact ? 'Search address, landmark, city…' : 'Search for an address, neighborhood, landmark, or city'}
-          className="flex-1 min-w-0 bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
+          className="flex-1 min-w-0 bg-transparent text-sm text-civic-text placeholder-civic-text-muted focus:outline-none"
         />
-        {(searching || resolving) && <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />}
+        {(searching || resolving) && <Loader2 className="w-3.5 h-3.5 text-civic-accent animate-spin shrink-0" />}
         {!searching && !resolving && query && (
-          <button onClick={handleClear} className="text-slate-500 hover:text-slate-300 shrink-0">
+          <button
+            onClick={handleClear}
+            aria-label="Clear search"
+            className="text-civic-text-muted hover:text-civic-text shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40">
             <X className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
 
       {error && (
-        <div className="text-xs text-rose-400 mt-1.5">{error}</div>
+        <div className="text-xs text-civic-risk-high mt-1.5">{error}</div>
       )}
 
       {open && suggestions.length > 0 && (
-        <div className="absolute z-[2000] mt-1.5 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-[2000] mt-1.5 w-full bg-civic-surface border border-civic-border rounded-lg shadow-civic-sm overflow-hidden">
           {suggestions.map(s => (
             <button
               key={s.placeId}
               onClick={() => handleSelect(s)}
-              className="w-full flex items-start gap-2 text-left px-3 py-2.5 hover:bg-slate-700 transition-colors border-b border-slate-700/60 last:border-0">
-              <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+              className="w-full flex items-start gap-2 text-left px-3 py-2.5 hover:bg-civic-surface-secondary transition-colors border-b border-civic-border last:border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40">
+              <MapPin className="w-3.5 h-3.5 text-civic-accent shrink-0 mt-0.5" />
               <div>
-                <div className="text-xs font-medium text-white">{s.mainText || s.text}</div>
-                {s.secondaryText && <div className="text-[11px] text-slate-500">{s.secondaryText}</div>}
+                <div className="text-xs font-medium text-civic-text">{s.mainText || s.text}</div>
+                {s.secondaryText && <div className="text-[11px] text-civic-text-muted">{s.secondaryText}</div>}
               </div>
             </button>
           ))}
