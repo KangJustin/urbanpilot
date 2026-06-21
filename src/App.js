@@ -17,6 +17,8 @@ import PlanningFindings from './components/PlanningFindings';
 import MainMapPanel from './components/MainMapPanel';
 import AIAssistantPanel from './components/AIAssistantPanel';
 import ReadyToAnalyzeCard from './components/ReadyToAnalyzeCard';
+import ProjectedScenarioChanges from './components/ProjectedScenarioChanges';
+import VisualizeStreetscapeAction from './components/VisualizeStreetscapeAction';
 
 // Placeholder shown before the user searches for a location. Never re-substituted after a
 // real place is selected — see selectedLocation state in App().
@@ -356,21 +358,9 @@ export default function App() {
                 selectedLocation={selectedLocation}
                 analysisState={analysisState}
                 selectedScenario={selectedScenario}
-                selectScenario={selectScenario}
                 visualizedImages={visualizedImages}
                 presentPhotoUrl={presentPhotoUrl}
-                presentPhotoSource={presentPhotoSource}
                 data={data}
-                scenarioYears={SCENARIO_YEARS}
-                userVisionText={userVisionText}
-                setUserVisionText={setUserVisionText}
-                referenceImage={referenceImage}
-                setReferenceImage={setReferenceImage}
-                handleGenerateVisualization={handleGenerateVisualization}
-                visualizingYear={visualizingYear}
-                visualizeError={visualizeError}
-                copied={copied}
-                setCopied={setCopied}
               />
             </div>
 
@@ -386,19 +376,50 @@ export default function App() {
       )}
 
       {isResults && (
-        <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
-          {/* Left content panel: Street View, AI agent cards */}
-          <div className="order-2 lg:order-none w-full lg:w-[34%] shrink-0 bg-civic-bg border-b lg:border-b-0 lg:border-r border-civic-border flex flex-col lg:overflow-hidden">
-            <div className="flex-1 lg:overflow-y-auto px-4 py-4 space-y-3">
-              <StreetViewPanel location={selectedLocation} />
-
-              <AnalysisStatusBar
-                analysisState={analysisState}
-                analysisError={analysisError}
-                agentStatuses={agentStatuses}
-                agents={AGENTS}
+        // Two workspaces from one flat grid: every item carries both an `order` (the exact
+        // mobile/tablet reading sequence from the spec) and an `lg:col-start` (which workspace it
+        // belongs to at 1024px+). Below lg, col-start is unset, so the grid collapses to a single
+        // column and items fall into the interleaved order; at lg+, each column independently
+        // stacks its own items top-down regardless of the other column's order values — the
+        // standard CSS grid "two independent masonry columns" pattern.
+        <div className="flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[59fr_41fr] gap-3 lg:gap-x-6 lg:gap-y-4 px-4 sm:px-5 py-4">
+            <div className="order-1 lg:col-start-1">
+              <CurrentConditionsPanel
+                climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData}
+                transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData}
+                censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData}
               />
+            </div>
 
+            <div className="order-2 lg:col-start-1">
+              <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
+            </div>
+
+            <div className="order-3 lg:col-start-1">
+              <PlanningFindings risks={allRisks} recommendations={allRecs} />
+            </div>
+
+            <div className="order-4 lg:col-start-2 h-[420px] lg:h-[460px] flex flex-col rounded-lg border border-civic-border overflow-hidden">
+              <MainMapPanel
+                selectedLocation={selectedLocation}
+                analysisState={analysisState}
+                selectedScenario={selectedScenario}
+                visualizedImages={visualizedImages}
+                presentPhotoUrl={presentPhotoUrl}
+                data={data}
+              />
+            </div>
+
+            <div className="order-5 lg:col-start-2">
+              <ProjectedScenarioChanges data={data} selectedScenario={selectedScenario} presentPhotoSource={presentPhotoSource} />
+            </div>
+
+            <div className="order-6 lg:col-start-2">
+              <StreetViewPanel location={selectedLocation} />
+            </div>
+
+            <div className="order-7 lg:col-start-1">
               <DataMethodologySection
                 climateAgent={climateAgent}
                 accessibilityAgent={accessibilityAgent}
@@ -408,39 +429,33 @@ export default function App() {
                 limitationsText={data.dataDisclosure?.limitations?.[0]}
               />
             </div>
-          </div>
 
-          <div className="order-3 lg:order-none w-full lg:w-[41%] lg:flex-1 min-h-[420px] lg:min-h-0 shrink-0 flex flex-col">
-            <MainMapPanel
-              selectedLocation={selectedLocation}
-              analysisState={analysisState}
-              selectedScenario={selectedScenario}
-              selectScenario={selectScenario}
-              visualizedImages={visualizedImages}
-              presentPhotoUrl={presentPhotoUrl}
-              presentPhotoSource={presentPhotoSource}
-              data={data}
-              scenarioYears={SCENARIO_YEARS}
-              userVisionText={userVisionText}
-              setUserVisionText={setUserVisionText}
-              referenceImage={referenceImage}
-              setReferenceImage={setReferenceImage}
-              handleGenerateVisualization={handleGenerateVisualization}
-              visualizingYear={visualizingYear}
-              visualizeError={visualizeError}
-              copied={copied}
-              setCopied={setCopied}
-            />
-          </div>
+            <div className="order-8 lg:col-start-1">
+              <VisualizeStreetscapeAction
+                data={data}
+                selectedScenario={selectedScenario}
+                visualizedImages={visualizedImages}
+                visualizingYear={visualizingYear}
+                visualizeError={visualizeError}
+                handleGenerateVisualization={handleGenerateVisualization}
+                copied={copied}
+                setCopied={setCopied}
+                userVisionText={userVisionText}
+                setUserVisionText={setUserVisionText}
+                referenceImage={referenceImage}
+                setReferenceImage={setReferenceImage}
+                presentPhotoUrl={presentPhotoUrl}
+              />
+            </div>
 
-          <div className="order-1 lg:order-none w-full lg:w-[25%] shrink-0 bg-civic-bg border-b lg:border-b-0 lg:border-l border-civic-border lg:overflow-y-auto px-4 py-4 space-y-3">
-            <CurrentConditionsPanel
-              climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData}
-              transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData}
-              censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData}
-            />
-            <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
-            <PlanningFindings risks={allRisks} recommendations={allRecs} />
+            <div className="order-9 lg:col-start-1">
+              <AnalysisStatusBar
+                analysisState={analysisState}
+                analysisError={analysisError}
+                agentStatuses={agentStatuses}
+                agents={AGENTS}
+              />
+            </div>
           </div>
         </div>
       )}
