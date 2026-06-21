@@ -5,7 +5,7 @@ export default function ScenarioTabs({ years, scenarios, selectedYear, onSelect 
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex bg-slate-900/90 border border-slate-700 rounded-xl p-1 backdrop-blur-sm gap-1">
       {years.map(year => {
-        const subtitle = scenarios?.[year]?.title?.split(':')[1]?.trim();
+        const subtitle = scenarios?.[year]?.title;
         const selected = selectedYear === year;
         return (
           <button
@@ -16,7 +16,7 @@ export default function ScenarioTabs({ years, scenarios, selectedYear, onSelect 
             }`}>
             <div className={`text-xs font-bold ${selected ? 'text-white' : 'text-slate-300'}`}>{year === '2026' ? 'Current' : year}</div>
             {subtitle && (
-              <div className={`text-[10px] leading-tight ${selected ? 'text-emerald-100' : 'text-slate-500'}`}>{subtitle}</div>
+              <div className={`text-[10px] leading-tight max-w-[140px] truncate ${selected ? 'text-emerald-100' : 'text-slate-500'}`}>{subtitle}</div>
             )}
           </button>
         );

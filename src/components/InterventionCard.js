@@ -26,14 +26,14 @@ export default function InterventionCard({ rec }) {
   const topImpact = Object.entries(rec.impact || {}).sort((a, b) => b[1] - a[1])[0];
 
   return (
-    <div className="shrink-0 w-[140px] rounded-lg overflow-hidden border border-slate-700/60 bg-slate-900">
-      <div className={`h-[70px] ${image ? '' : `bg-gradient-to-br ${styles.grad} flex items-center justify-center text-slate-500`}`}>
+    <div className="rounded-lg overflow-hidden border border-slate-700/60 bg-slate-900">
+      <div className={`h-[56px] ${image ? '' : `bg-gradient-to-br ${styles.grad} flex items-center justify-center text-slate-500`}`}>
         {image ? <img src={image} alt={rec.title} className="w-full h-full object-cover" /> : styles.icon}
       </div>
-      <div className="p-2">
-        <div className="text-[11px] font-semibold text-white leading-tight mb-1 line-clamp-2">{rec.title}</div>
+      <div className="p-1.5">
+        <div className="text-[10px] font-semibold text-white leading-tight mb-0.5 line-clamp-2">{rec.title}</div>
         {topImpact && (
-          <div className="text-[10px] text-emerald-400">+{topImpact[1]} {topImpact[0]}</div>
+          <div className="text-[9px] text-emerald-400">+{topImpact[1]} {topImpact[0]}</div>
         )}
       </div>
     </div>
