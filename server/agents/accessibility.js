@@ -164,6 +164,8 @@ Planning goal: ${goal.description}
 
 ${transitBlock}
 
+Use your knowledge of this specific location, its transit infrastructure, and street network. \
+Do not substitute another city's characteristics unless the site is actually there. \
 Use verified 511 GTFS numbers exactly where provided. For walkability, bike connectivity, pedestrian safety, \
 and ADA barriers, apply planning expertise but clearly distinguish estimates from verified transit figures.
 

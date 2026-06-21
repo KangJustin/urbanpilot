@@ -8,7 +8,7 @@ export default function TopHeader({
   conditions, aqiInfo, heatRisk, floodRisk, WeatherIcon,
 }) {
   return (
-    <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-5 py-3 flex items-center gap-5 overflow-x-auto">
+    <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-5 py-3 flex items-center gap-5">
       <div className="flex items-center gap-2 shrink-0">
         <Sparkles className="w-5 h-5 text-emerald-400" />
         <span className="text-sm font-bold text-white tracking-tight">UrbanPilot</span>
