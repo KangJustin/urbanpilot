@@ -28,3 +28,4 @@ server/node_modules
 server/.env
 server/.mcp-auth
 server/uploads
+server/scripts/__pycache__
