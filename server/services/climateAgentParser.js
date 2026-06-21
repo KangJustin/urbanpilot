@@ -79,6 +79,9 @@ function buildClimateFallback({ site, goal, climateResult, rawText, parseError }
   if (c.femaFloodZone != null) {
     parts.push(`FEMA zone ${c.femaFloodZone} (${c.femaFloodRisk})`);
   }
+  if (c.treeCanopyPercent != null) {
+    parts.push(`NLCD canopy ${c.treeCanopyPercent}% (${c.treeCanopyYear}, 30m pixel)`);
+  }
   const climateLine = climateResult.climateAvailable && parts.length
     ? `Verified conditions: ${parts.join('; ')}. `
     : '';
@@ -96,7 +99,12 @@ function buildClimateFallback({ site, goal, climateResult, rawText, parseError }
         `FEMA flood zone: ${c.femaFloodZone} (${c.femaFloodRisk}, SFHA: ${c.inSpecialFloodHazardArea ? 'Yes' : 'No'}, FEMA NFHL)`,
       );
     }
-    findings.push('Heat island, canopy, and long-term resilience findings require a successful agent response.');
+    if (c.treeCanopyPercent != null) {
+      findings.push(
+        `NLCD tree canopy: ${c.treeCanopyPercent}% (${c.treeCanopyYear}, ${c.treeCanopyResolutionM}m pixel; may differ from neighborhood average)`,
+      );
+    }
+    findings.push('Heat island and long-term resilience findings require a successful agent response.');
     findings.push('Detailed AI climate findings could not be parsed — use verified climateData for current conditions.');
   } else {
     findings.push(
@@ -111,7 +119,7 @@ function buildClimateFallback({ site, goal, climateResult, rawText, parseError }
     score: 50,
     summary: `${climateLine}Automated climate interpretation was unavailable for ${site?.name || 'this site'}. `
       + `Planning goal: ${goal?.description || 'not specified'}. `
-      + 'Review verified Open-Meteo and FEMA metrics below and re-run analysis if needed.',
+      + 'Review verified Open-Meteo, FEMA, and NLCD metrics below and re-run analysis if needed.',
     findings,
     risks: [
       {

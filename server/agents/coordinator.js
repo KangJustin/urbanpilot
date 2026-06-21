@@ -81,6 +81,7 @@ async function runAnalysis(request) {
     : null;
 
   const hasFemaData = climate.climateData?.femaFloodZone != null;
+  const hasNlcdCanopy = climate.climateData?.treeCanopyPercent != null;
 
   const realDataUsed = [
     'Google Places location data (address, coordinates)',
@@ -92,6 +93,7 @@ async function runAnalysis(request) {
       ? ['Open-Meteo Air Quality API']
       : []),
     ...(hasFemaData ? ['FEMA National Flood Hazard Layer'] : []),
+    ...(hasNlcdCanopy ? ['NLCD Tree Canopy Cover 2023 (USFS/MRLC)'] : []),
     ...(housing.censusAvailable ? [`U.S. Census Bureau ${housing.censusData?.source || 'ACS 5-Year'} (block group ${housing.censusData?.geography?.geoid || 'unknown'})`] : []),
     ...(accessibility.transitAvailable ? ['511 SF Bay Regional GTFS'] : []),
   ];
@@ -107,6 +109,9 @@ async function runAnalysis(request) {
     }
     if (!hasFemaData) {
       estimatedData.push('FEMA flood zone (NFHL unavailable for this location)');
+    }
+    if (!hasNlcdCanopy) {
+      estimatedData.push('NLCD tree canopy (CONUS ImageServer unavailable for this location)');
     }
   }
   if (!housing.censusAvailable) {
@@ -139,6 +144,7 @@ async function runAnalysis(request) {
           ? 'Scores and planning recommendations are AI-generated for exploration. '
             + 'Open-Meteo current weather and US AQI are verified when present in climateData. '
             + 'FEMA NFHL flood zone and SFHA status are verified when present in climateData. '
+            + 'NLCD tree canopy percent (30m pixel, 2023) is verified when present in climateData. '
             + 'Census ACS housing metrics are verified when censusAvailable is true. '
             + '511 SF Bay transit proximity metrics are verified when transitAvailable is true.'
           : 'Values are AI-generated estimates for planning exploration. Not verified planning data.',

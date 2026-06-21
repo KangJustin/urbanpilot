@@ -1,6 +1,7 @@
 const { callAgentRaw } = require('../services/claudeService');
 const { getOpenMeteoClimateMetrics, SOURCE: OPEN_METEO_SOURCES } = require('../services/openMeteoService');
 const { getFemaFloodMetrics, SOURCE: FEMA_SOURCE } = require('../services/femaNfhlService');
+const { getNlcdTreeCanopyMetrics, SOURCE: NLCD_SOURCE } = require('../services/nlcdTccService');
 const { parseClimateAgentJson, buildClimateFallback } = require('../services/climateAgentParser');
 
 const CLIMATE_MODEL = 'claude-haiku-4-5-20251001';
@@ -13,10 +14,12 @@ When verified Open-Meteo current weather and US AQI metrics are provided, you MU
 in summary and findings (e.g. "Current temperature: 62°F, US AQI 42 (Good)"). \
 When verified FEMA NFHL flood zone data is provided, you MUST cite the exact flood zone, flood risk level, \
 and SFHA status (e.g. "FEMA flood zone X, Minimal risk, not in Special Flood Hazard Area"). \
-Do NOT invent or override verified Open-Meteo or FEMA statistics. \
+When verified NLCD tree canopy data is provided, you MUST cite the exact treeCanopyPercent \
+(e.g. "NLCD tree canopy: 0% (2023, 30m pixel)") and note that a 30m pixel-level value may differ from a neighborhood average. \
+Do NOT invent or override verified Open-Meteo, FEMA, or NLCD statistics. \
 Copy climateData numeric and string fields exactly from the prompt when climateAvailable is true. \
-Heat island severity, tree canopy %, impervious surface, drought, and long-term climate projections \
-are AI estimates unless explicitly marked as verified — distinguish them clearly from verified weather/AQI/FEMA data. \
+Heat island severity, impervious surface %, drought, and long-term greening/climate projections \
+are AI estimates unless explicitly marked as verified — distinguish them clearly from verified weather/AQI/FEMA/NLCD data. \
 Return ONLY one valid JSON object matching the schema exactly. \
 No markdown, no code fences, no commentary before or after the JSON.`;
 
@@ -26,6 +29,7 @@ function formatClimateBlock(climateData) {
   const lines = [];
   const hasOpenMeteo = climateData.temperatureF != null || climateData.usAqi != null;
   const hasFema = climateData.femaFloodZone != null;
+  const hasNlcd = climateData.treeCanopyPercent != null;
 
   if (hasOpenMeteo) {
     const temp = climateData.temperatureF != null
@@ -45,6 +49,13 @@ function formatClimateBlock(climateData) {
     lines.push(`- Flood risk: ${climateData.femaFloodRisk}`);
     lines.push(`- In Special Flood Hazard Area (SFHA): ${climateData.inSpecialFloodHazardArea ? 'Yes' : 'No'}`);
     lines.push(`- Base flood elevation (ft): ${climateData.baseFloodElevationFt ?? 'N/A'}`);
+  }
+
+  if (hasNlcd) {
+    lines.push('');
+    lines.push(`Verified NLCD Tree Canopy Cover (${NLCD_SOURCE}):`);
+    lines.push(`- Tree canopy: ${climateData.treeCanopyPercent}% (${climateData.treeCanopyYear}, ${climateData.treeCanopyResolutionM}m pixel)`);
+    lines.push('- Note: 30m pixel-level canopy may differ from neighborhood or citywide averages.');
   }
 
   return lines.join('\n').trim();
@@ -71,6 +82,12 @@ function buildVerifiedClimatePayload(climateData) {
     payload.baseFloodElevationFt = climateData.baseFloodElevationFt ?? null;
   }
 
+  if (climateData.treeCanopyPercent != null) {
+    payload.treeCanopyPercent = climateData.treeCanopyPercent;
+    payload.treeCanopyYear = climateData.treeCanopyYear;
+    payload.treeCanopyResolutionM = climateData.treeCanopyResolutionM;
+  }
+
   return payload;
 }
 
@@ -83,10 +100,10 @@ function buildResponseSchema(climateResult) {
   const climateDataSchema = buildClimateDataSchema(climateResult);
   return `{
   "score": 0,
-  "summary": "string — 2-3 sentences citing verified Open-Meteo temperature/AQI and FEMA flood zone when available",
+  "summary": "string — cite verified Open-Meteo, FEMA flood zone, and NLCD tree canopy when available",
   "findings": [
-    "string — include verified current temperature, US AQI, and FEMA flood zone where relevant",
-    "string — heat/canopy/impervious findings must be labeled as estimates if not verified",
+    "string — include verified temperature, AQI, FEMA zone, and NLCD treeCanopyPercent where relevant",
+    "string — heat/impervious findings must be labeled as estimates if not verified; note 30m canopy pixel caveat",
     "string",
     "string"
   ],
@@ -131,11 +148,12 @@ function buildResponseSchema(climateResult) {
 }`;
 }
 
-function mergeClimateMetrics(openMeteoResult, femaResult) {
+function mergeClimateMetrics(openMeteoResult, femaResult, nlcdResult) {
   const hasOpenMeteo = openMeteoResult?.climateAvailable && openMeteoResult.climateData;
   const hasFema = femaResult?.femaAvailable && femaResult.femaData;
+  const hasNlcd = nlcdResult?.nlcdAvailable && nlcdResult.nlcdData;
 
-  if (!hasOpenMeteo && !hasFema) {
+  if (!hasOpenMeteo && !hasFema && !hasNlcd) {
     return { climateAvailable: false, climateData: null };
   }
 
@@ -156,9 +174,22 @@ function mergeClimateMetrics(openMeteoResult, femaResult) {
     if (!source.includes(FEMA_SOURCE)) source.push(FEMA_SOURCE);
   }
 
+  if (hasNlcd) {
+    const n = nlcdResult.nlcdData;
+    climateData.treeCanopyPercent = n.treeCanopyPercent;
+    climateData.treeCanopyYear = n.year;
+    climateData.treeCanopyResolutionM = n.resolutionM;
+    if (!source.includes(NLCD_SOURCE)) source.push(NLCD_SOURCE);
+  }
+
   climateData.source = source;
 
-  return { climateAvailable: true, climateData, femaAvailable: !!hasFema };
+  return {
+    climateAvailable: true,
+    climateData,
+    femaAvailable: !!hasFema,
+    nlcdAvailable: !!hasNlcd,
+  };
 }
 
 async function fetchClimateMetrics(site) {
@@ -167,7 +198,7 @@ async function fetchClimateMetrics(site) {
     return { climateAvailable: false };
   }
 
-  const [openMeteoResult, femaResult] = await Promise.all([
+  const [openMeteoResult, femaResult, nlcdResult] = await Promise.all([
     getOpenMeteoClimateMetrics(latitude, longitude).catch((err) => {
       console.warn('[climate] Open-Meteo lookup failed, continuing without weather/AQI:', err.message);
       return { climateAvailable: false, climateData: null };
@@ -176,9 +207,13 @@ async function fetchClimateMetrics(site) {
       console.warn('[climate] FEMA NFHL lookup failed, continuing without flood zone:', err.message);
       return { femaAvailable: false, femaData: null };
     }),
+    getNlcdTreeCanopyMetrics(latitude, longitude).catch((err) => {
+      console.warn('[climate] NLCD TCC lookup failed, continuing without tree canopy:', err.message);
+      return { nlcdAvailable: false, nlcdData: null };
+    }),
   ]);
 
-  return mergeClimateMetrics(openMeteoResult, femaResult);
+  return mergeClimateMetrics(openMeteoResult, femaResult, nlcdResult);
 }
 
 function attachVerifiedClimate(agentResult, climateResult) {
@@ -213,7 +248,7 @@ async function analyzeClimate({ site, goal }) {
   const climateResult = await fetchClimateMetrics(site);
   const climateBlock = climateResult.climateAvailable
     ? formatClimateBlock(climateResult.climateData)
-    : 'No verified Open-Meteo weather/AQI or FEMA flood zone data available for this location — note that conditions and flood findings are estimates.';
+    : 'No verified Open-Meteo, FEMA, or NLCD data available for this location — note that conditions and climate findings are estimates.';
 
   const responseSchema = buildResponseSchema(climateResult);
 
@@ -229,8 +264,9 @@ Do not substitute another city's characteristics unless the site is actually the
 
 Use verified Open-Meteo temperature and US AQI exactly where provided. \
 Use verified FEMA flood zone, flood risk, and SFHA status exactly where provided — do not re-estimate regulatory flood exposure when FEMA data is present. \
-For urban heat island exposure, tree canopy, impervious surface, drought, and long-term adaptation recommendations, \
-apply planning expertise but clearly label those as estimates distinct from verified weather/AQI/FEMA data.
+Use verified NLCD treeCanopyPercent exactly where provided — cite the 30m pixel value and note it may differ from neighborhood averages; do not substitute a different canopy estimate. \
+For urban heat island exposure, impervious surface, drought, and long-term greening/adaptation recommendations, \
+apply planning expertise but clearly label those as estimates distinct from verified weather/AQI/FEMA/NLCD data.
 
 When climateAvailable is true, copy climateData values exactly from the schema below — do not modify them.
 
