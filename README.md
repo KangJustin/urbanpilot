@@ -11,19 +11,31 @@ Midjourney.
 src/                      React frontend (Create React App + Tailwind + Leaflet)
   App.js                  App shell — state/handlers, composes the components below
   components/
-    TopHeader.js            Logo, compact location search, live conditions bar
+    TopHeader.js             Logo, compact location search, live conditions bar
     LocationSearch.js        Google Places Autocomplete (proxied through the backend)
-    ConditionsBar.js          Live weather/AQI/heat/flood badges
-    PresentDayView.js        Google Maps JS API panel: Street View / map / satellite toggle
-    AgentCard.js              One card per specialist agent (climate/accessibility/housing/urban design)
-    MainMapPanel.js          Central map workspace: scenario tabs, overlay image, Generate Future Vision
-    ScenarioTabs.js            Current/2040/2075 switcher overlaid on the map
-    ReferenceImageInput.js    Upload-your-own-photo workflow for the Midjourney reference image
-    ScoreBreakdownPanel.js, RisksPanel.js, RecommendationsPanel.js
-                              Right-hand analysis panel (gated behind a completed analysis)
-    InterventionCard.js      Bottom "Recommended Interventions" strip
+    ConditionsBar.js         Live weather/AQI/heat/flood badges
+    ControlStrip.js          Planning-goal / target-year picker + Analyze trigger
+    AnalysisStatusBar.js     Compact status line while agents are running
+    ReadyToAnalyzeCard.js    Pre-analysis onboarding state — no fabricated scores/data
+    MainMapPanel.js          Leaflet map workspace: marker, zoom controls, scenario overlay image
+    ProjectedScenarioChanges.js  Per-scenario projected-change stat strip, beside the map
+    StreetViewPanel.js       Collapsible wrapper around PresentDayView
+    PresentDayView.js        Google Maps JS API panel: Street View / satellite toggle
+    VisualizeStreetscapeAction.js  "Visualize Proposed Streetscape" trigger (Midjourney)
+    ReferenceImageInput.js   Upload-your-own-photo workflow for the Midjourney reference image
+    CurrentConditionsPanel.js  Verified climate/accessibility/housing snapshot
+    PlanningFindings.js      Tabbed container: Risks / Recommendations / Interventions
+    RisksPanel.js, RecommendationsPanel.js, InterventionsPanel.js, InterventionCard.js
+                             Right-hand analysis panel content (gated behind a completed analysis)
+    ScoreBreakdownPanel.js   Per-category score breakdown
+    DataMethodologySection.js  Collapsed-by-default section hosting the 4 full AgentCard.js cards
+    AgentCard.js             One card per specialist agent (climate/accessibility/housing/urban design)
     AIAssistantPanel.js      Docked Ask-AI chat panel
     ui/                      shadcn/ui primitives (Card, Badge, Tabs, Tooltip, ScrollArea)
+  constants/planning.js    Default location + shared planning constants
+  lib/utils.js             shadcn's cn() className helper
+  utils/                   formatters.js (null-safe display formatting), planningHelpers.js
+                           (cost/weather icon + color maps)
   services/analysisApi.js  All fetch calls to the backend, in one place
 
 server/                   Node/Express backend
@@ -31,16 +43,34 @@ server/                   Node/Express backend
                           urbanDesign, vision, ask) + coordinator.js orchestrating them
   routes/                 analysis, ask, conditions, location, upload, visualize, health
   services/
-    claudeService.js      Thin wrapper around the Anthropic SDK
-    conditionsService.js Live weather/AQI via Open-Meteo (no key needed)
+    claudeService.js      Wraps the Anthropic SDK; the client is wrapped again with
+                          the-token-company's withCompression (see Token compression below)
+    promptCompression.js  Shared compact-encoding helpers used by the housing/climate/
+                          accessibility agent prompts
+    censusService.js      U.S. Census Geocoder → block group → ACS 5-Year housing metrics
+    openMeteoService.js   Live weather + US AQI for Climate Agent grounding (no key needed)
+    femaNfhlService.js    FEMA National Flood Hazard Layer flood-zone lookup (no key needed)
+    nlcdTccService.js     NLCD Tree Canopy Cover lookup (no key needed)
+    transit511Service.js  511 SF Bay Regional GTFS → verified transit proximity metrics
+    *AgentParser.js       Per-agent (housing/climate/accessibility) JSON extraction +
+                          fallback repair for truncated/malformed Claude responses
+    conditionsService.js Live weather/AQI via Open-Meteo (no key needed) — powers the
+                          frontend's top "Live Data" conditions bar specifically
     googleMapsService.js Places (New) Autocomplete/Details, Street View status, image proxies
     midjourneyMcpClient.js
                           OAuth + connection management for Midjourney's MCP server
     midjourneyService.js generateImage() — the actual Midjourney call
     renderingProvider.js FutureRenderingProvider abstraction over midjourneyService
+  scripts/                One-off scripts that hit real external APIs: verify-housing-census.js,
+                          verify-climate-{fema,nlcd,openmeteo}.js, verify-accessibility-transit.js,
+                          verify-ask-grounding.js, verify-vision-baselines.js, plus the token
+                          compression benchmark (compression-bench.js, compression_benchmark_ttc*.py)
 ```
 
-**Data flow for an analysis:** `LocationSearch` resolves an address to `{placeId, formattedAddress, latitude, longitude, viewport}` (the single source of truth, `selectedLocation` in `App.js`) → `/api/analyze` runs the climate/accessibility/housing/urbanDesign/vision agents in parallel, each asking Claude about whatever site it is given → results populate the AI agent cards, Scores Breakdown, Top Risks, and Top Recommendations panels (all empty/idle until that analysis completes — never the bundled demo data). The Current scenario shows a real photo (Street View if covered, otherwise satellite) fetched through `/api/location/street-view-image` and `/api/location/satellite-image` — these proxy routes exist so the Google API key never reaches the browser. 2040/2075 generate via Midjourney, using that same real photo as a composition reference by default (or your own uploaded photo).
+**Data flow for an analysis:** `LocationSearch` resolves an address to `{placeId, formattedAddress, latitude, longitude, viewport}` (the single source of truth, `selectedLocation` in `App.js`) → `/api/analyze` runs the climate/accessibility/housing/urbanDesign/vision agents in parallel, each grounding itself in a real verified data source (Census ACS, Open-Meteo, FEMA NFHL, NLCD, 511 GTFS) before asking Claude about the site → results populate the AI agent cards, Score Breakdown, Top Risks, and Top Recommendations panels (all empty/idle until that analysis completes — there's no bundled demo data to fall back to). The Current scenario shows a real photo (Street View if covered, otherwise satellite) fetched through `/api/location/street-view-image` and `/api/location/satellite-image` — these proxy routes exist so the Google API key never reaches the browser. 2040/2075 generate via Midjourney, using that same real photo as a composition reference by default (or your own uploaded photo).
+
+A diagram of the agent pipeline (parallel specialist agents → synthesis → vision → response) is in
+[`docs/agent-workflow.png`](docs/agent-workflow.png).
 
 ## Setup
 
@@ -62,9 +92,12 @@ cp server/.env.example server/.env
 
 | Variable | Where | What it's for |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | `server/.env` | Powers every Claude agent. Without it, agents fall back to mock Berkeley demo data. |
+| `ANTHROPIC_API_KEY` | `server/.env` | Powers every Claude agent. Without it, each agent's Claude call fails and that section of the analysis shows as temporarily unavailable rather than a result (there's no mock-data fallback). |
 | `GOOGLE_MAPS_SERVER_API_KEY` | `server/.env` | Server-only key for Places API (New), Geocoding API, Street View Static API, Maps Static API. **Never** put this in the frontend. |
-| `REACT_APP_GOOGLE_MAPS_API_KEY` | `.env` (root) | Client-side key for the Maps JavaScript API (interactive map, satellite, Street View panel). Restrict it by HTTP referrer in Google Cloud Console — it's visible in the browser by design. |
+| `CENSUS_API_KEY` | `server/.env` | U.S. Census Bureau key for the Housing Agent's verified ACS metrics. Without it, the Housing Agent still runs, just without verified Census grounding. |
+| `TRANSIT_511_API_KEY` | `server/.env` | 511 SF Bay Open Data key for the Accessibility Agent's verified GTFS transit metrics. Same degrade-gracefully behavior without it. |
+| `TTC_API_KEY` | `server/.env` | The Token Company key. `claudeService.js` wraps the Anthropic client with their `withCompression` on every agent call — see [Token compression](#token-compression-the-token-company) below. |
+| `REACT_APP_GOOGLE_MAPS_API_KEY` | `.env` (root) | Client-side key for the Maps JavaScript API, used specifically by `PresentDayView.js`'s Street View/satellite panel (the main map workspace itself is Leaflet, not Google Maps JS). Restrict it by HTTP referrer in Google Cloud Console — it's visible in the browser by design. |
 
 Optional:
 
@@ -104,6 +137,21 @@ cd server && node index.js   # backend, http://localhost:3001
 
 The frontend hot-reloads on save. The backend doesn't — restart it after editing anything in
 `server/`. (`npm run dev` in `server/` uses `node --watch` if you'd rather it restart itself.)
+
+## Deployment
+
+`render.yaml` at the repo root declares a two-service Render deployment: `urbanpilot-backend`
+(Node web service, `rootDir: server`) and `urbanpilot-frontend` (static site built from the
+React app). Notable deploy-only details not covered above:
+
+- The backend needs every key from the Required table above, plus `MIDJOURNEY_TOKEN_CACHE` — the
+  JSON contents of a `server/.mcp-auth/midjourney.json` produced by completing the interactive
+  Midjourney OAuth flow once on a machine with a browser. This lets the headless deploy start
+  already-authenticated instead of trying (and failing) to open a browser itself.
+- `ALLOWED_ORIGINS` (backend) and `REACT_APP_API_URL` (frontend) reference each other's eventual
+  URLs, so they have to be set *after* both services exist for the first time.
+- CRA bakes `REACT_APP_*` variables in at build time — changing one requires a redeploy, not just
+  an env var update.
 
 ## Token compression (The Token Company)
 
@@ -162,10 +210,10 @@ gains aren't simply additive. TTC's wrapper exposes live stats
   reference" feature silently falls back to text-only generation in local dev, since Midjourney
   rejects non-public reference URLs. It'll work automatically once deployed somewhere with a
   real public URL — no code change needed then.
-- **Mock Berkeley demo data** (`src/mock/berkeleyAnalysis.json`) is only used in the pristine
-  pre-search state (no address searched, no analysis run yet) and as a fallback if a live
-  analysis fails *specifically for Berkeley*. It's gated out of every analysis-result panel —
-  any other address that fails shows a real error instead of substituted mock data.
+- **No bundled mock data, anywhere.** The old Berkeley demo dataset was removed entirely. The
+  pristine pre-search state is `ReadyToAnalyzeCard.js` — purely presentational onboarding copy,
+  never a fabricated score, risk, or recommendation. Every result panel is empty/idle until a
+  real analysis completes; a failed analysis shows a real error, never substituted data.
 - Google Maps/Street View/satellite imagery is **only ever displayed**, never used as Midjourney
   training/input data except for the explicit, accepted-risk reference-image case above — see
   the comments in `renderingProvider.js` and `googleMapsService.js` for the reasoning.
