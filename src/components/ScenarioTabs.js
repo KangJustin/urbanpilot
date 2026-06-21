@@ -1,28 +1,19 @@
 import React from 'react';
 
 // Top pill tabs for switching between the 3 years we have real data for, mockup-style.
-export default function ScenarioTabs({ years, scenarios, selectedYear, onSelect }) {
+export default function ScenarioTabs({ years, selectedYear, onSelect }) {
   return (
     <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex bg-slate-900/90 border border-slate-700 rounded-xl p-1 backdrop-blur-sm gap-1">
       {years.map(year => {
-        const subtitle = scenarios?.[year]?.title;
         const selected = selectedYear === year;
         return (
           <button
             key={year}
             onClick={() => onSelect(year)}
-            className={`px-4 py-1.5 rounded-lg text-left transition-all ${
-              selected ? 'bg-emerald-600 shadow-[0_0_14px_2px_rgba(16,185,129,0.45)]' : 'hover:bg-slate-800'
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              selected ? 'bg-emerald-600 text-white shadow-[0_0_14px_2px_rgba(16,185,129,0.45)]' : 'text-slate-300 hover:bg-slate-800'
             }`}>
-            <div className={`text-xs font-bold ${selected ? 'text-white' : 'text-slate-300'}`}>{year === '2026' ? 'Current' : year}</div>
-            {subtitle && (
-              <div
-                className={`text-[10px] leading-tight transition-all duration-300 ${
-                  selected ? 'max-w-[260px] whitespace-normal text-emerald-100' : 'max-w-[140px] truncate text-slate-500'
-                }`}>
-                {subtitle}
-              </div>
-            )}
+            {year === '2026' ? 'Current' : year}
           </button>
         );
       })}
