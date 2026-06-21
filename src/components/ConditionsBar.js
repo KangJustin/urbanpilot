@@ -1,22 +1,24 @@
 import React from 'react';
-import { CircleDot, AlertCircle, AlertTriangle } from 'lucide-react';
+import { CircleDot, AlertCircle, AlertTriangle, HelpCircle } from 'lucide-react';
 import ProvenanceChip from './ui/provenance-chip';
 
 // Civic-planning redesign Phase 2: restyled to the light civic palette.
 //
-// heatRisk/floodRisk/aqiInfo arrive from planningHelpers.js exactly as before — their
-// `label` (the actual classification, unchanged) is used; their bundled `color` (a
-// dark-theme Tailwind class like `text-rose-400`) is intentionally NOT used here, since it
-// doesn't have AA contrast on the new white surface. RISK_TONE below maps the unchanged label
-// strings to civic-palette colors instead — getHeatRisk/getFloodRisk/severityLabel/aqiCategory
-// in planningHelpers.js are not modified.
+// aqiInfo arrives from App.js's aqiCategory(); floodRisk is the FEMA NFHL-derived
+// femaFloodRisk label (verified — a deterministic zone/SFHA lookup, not AI). RISK_TONE maps
+// those label strings to civic-palette colors/icons. There's no heatRisk prop: no verified
+// heat-risk dataset exists anywhere in this codebase, so the header doesn't show an AI guess
+// labeled as a risk badge.
 const RISK_TONE = {
   Low: { color: 'text-civic-risk-low', Icon: CircleDot },
+  Minimal: { color: 'text-civic-risk-low', Icon: CircleDot },
   Moderate: { color: 'text-civic-risk-moderate', Icon: AlertCircle },
   'Unhealthy (SG)': { color: 'text-civic-risk-moderate', Icon: AlertCircle },
   High: { color: 'text-civic-risk-high', Icon: AlertTriangle },
+  'High (Coastal)': { color: 'text-civic-risk-high', Icon: AlertTriangle },
   Unhealthy: { color: 'text-civic-risk-high', Icon: AlertTriangle },
   'Very Unhealthy': { color: 'text-civic-risk-critical', Icon: AlertTriangle },
+  Undetermined: { color: 'text-civic-text-muted', Icon: HelpCircle },
   Good: { color: 'text-civic-accent', Icon: CircleDot },
 };
 
@@ -35,9 +37,9 @@ function RiskStat({ label, displayValue, toneKey, provenanceStatus, provenanceSo
   );
 }
 
-// Live weather/AQI + analysis-derived risk badges. Risk badges only render when there's a
+// Live weather/AQI + verified FEMA flood-risk badge. Risk badges only render when there's a
 // real value behind them (passed in as null otherwise) — never a placeholder number.
-export default function ConditionsBar({ conditions, aqiInfo, heatRisk, floodRisk, WeatherIcon }) {
+export default function ConditionsBar({ conditions, aqiInfo, floodRisk, WeatherIcon }) {
   return (
     <div className="flex items-center gap-4 sm:gap-5 shrink-0 flex-wrap">
       {conditions?.temperatureF != null && (
@@ -55,8 +57,7 @@ export default function ConditionsBar({ conditions, aqiInfo, heatRisk, floodRisk
           toneKey={aqiInfo.label} provenanceStatus="verified" provenanceSource="Open-Meteo"
         />
       )}
-      {heatRisk && <RiskStat label="Heat Risk" displayValue={heatRisk.label} toneKey={heatRisk.label} provenanceStatus="ai" />}
-      {floodRisk && <RiskStat label="Flood Risk" displayValue={floodRisk.label} toneKey={floodRisk.label} provenanceStatus="ai" />}
+      {floodRisk && <RiskStat label="Flood Risk" displayValue={floodRisk.label} toneKey={floodRisk.label} provenanceStatus="verified" provenanceSource="FEMA" />}
       <div className="flex items-center gap-1.5 bg-civic-surface-secondary border border-civic-border rounded-full px-2.5 py-1 shrink-0">
         <span className="w-1.5 h-1.5 rounded-full bg-civic-accent shrink-0" aria-hidden="true" />
         <span className="text-[11px] font-medium text-civic-text-muted">Live data</span>

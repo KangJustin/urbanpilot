@@ -4,9 +4,9 @@ import { Badge } from './badge';
 
 // Severity scale, civic-planning redesign Phase 1 (additive primitive, not yet wired into any
 // live page). Mirrors the existing 1-5 severity scale already used by RisksPanel.js's
-// SEVERITY_TONE/SEVERITY_LABEL and planningHelpers.js's severityLabel() — this component doesn't
-// change that scale, it's a restyled, icon-bearing presentation of the same values, intended to
-// eventually replace the duplicated logic in both places (not done in Phase 1).
+// SEVERITY_TONE/SEVERITY_LABEL — this component doesn't change that scale, it's a restyled,
+// icon-bearing presentation of the same values, intended to eventually replace the duplicated
+// logic (not done in Phase 1).
 // Icon shape escalates with severity (dot -> circle -> triangle -> octagon) so meaning isn't
 // color-only, per the accessibility color-not-only guideline. "Red reserved for serious risk
 // only" — Critical is the only tone using civic-risk-critical (red); High uses an orange-red,

@@ -37,27 +37,6 @@ export function aqiCategory(aqi) {
   return { label: 'Very Unhealthy', color: 'text-purple-400' };
 }
 
-export function severityLabel(severity) {
-  if (severity >= 4) return { label: 'High', color: 'text-rose-400' };
-  if (severity === 3) return { label: 'Moderate', color: 'text-amber-400' };
-  return { label: 'Low', color: 'text-emerald-400' };
-}
-
-export function getHeatRisk(climate) {
-  if (!climate) return null;
-  const risk = climate.risks?.find(r => /heat/i.test(r.title));
-  if (risk) return severityLabel(risk.severity);
-  if (climate.score >= 70) return { label: 'Low', color: 'text-emerald-400' };
-  if (climate.score >= 50) return { label: 'Moderate', color: 'text-amber-400' };
-  return { label: 'High', color: 'text-rose-400' };
-}
-
-export function getFloodRisk(climate) {
-  if (!climate) return null;
-  const risk = climate.risks?.find(r => /flood|stormwater|runoff/i.test(r.title));
-  return risk ? severityLabel(risk.severity) : { label: 'Low', color: 'text-emerald-400' };
-}
-
 export function isBerkeleyLocation(location) {
   const text = `${location?.displayName || ''} ${location?.formattedAddress || ''}`.toLowerCase();
   return text.includes('berkeley');

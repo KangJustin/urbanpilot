@@ -8,7 +8,7 @@ import ConditionsBar from './ConditionsBar';
 // separately once a final asset exists" instruction across Phases 2-6).
 export default function TopHeader({
   siteName, areaKm2, population, onLocationSelected,
-  conditions, aqiInfo, heatRisk, floodRisk, WeatherIcon,
+  conditions, aqiInfo, floodRisk, WeatherIcon,
 }) {
   return (
     <header className="shrink-0 border-b border-civic-border bg-civic-surface px-4 sm:px-5 py-3 flex flex-wrap items-center gap-3 sm:gap-5">
@@ -30,7 +30,7 @@ export default function TopHeader({
       </div>
 
       <div className="sm:ml-auto shrink-0">
-        <ConditionsBar conditions={conditions} aqiInfo={aqiInfo} heatRisk={heatRisk} floodRisk={floodRisk} WeatherIcon={WeatherIcon} />
+        <ConditionsBar conditions={conditions} aqiInfo={aqiInfo} floodRisk={floodRisk} WeatherIcon={WeatherIcon} />
       </div>
     </header>
   );

@@ -68,25 +68,15 @@ function aqiCategory(aqi) {
   return { label: 'Very Unhealthy', color: 'text-purple-400' };
 }
 
-function severityLabel(severity) {
-  if (severity >= 4) return { label: 'High', color: 'text-rose-400' };
-  if (severity === 3) return { label: 'Moderate', color: 'text-amber-400' };
-  return { label: 'Low', color: 'text-emerald-400' };
-}
-
-function getHeatRisk(climate) {
-  if (!climate) return null;
-  const risk = climate.risks?.find(r => /heat/i.test(r.title));
-  if (risk) return severityLabel(risk.severity);
-  if (climate.score >= 70) return { label: 'Low', color: 'text-emerald-400' };
-  if (climate.score >= 50) return { label: 'Moderate', color: 'text-amber-400' };
-  return { label: 'High', color: 'text-rose-400' };
-}
-
+// FEMA NFHL-derived, not AI — femaFloodRisk is a deterministic lookup over the verified
+// flood zone/SFHA fields (server/services/femaNfhlService.js: floodRiskFromZone()). No
+// verified heat-risk dataset exists anywhere in this codebase (heat island is Claude
+// narrative only), so there's no equivalent getHeatRisk — the header no longer shows one
+// rather than label an AI guess as a risk badge.
 function getFloodRisk(climate) {
-  if (!climate) return null;
-  const risk = climate.risks?.find(r => /flood|stormwater|runoff/i.test(r.title));
-  return risk ? severityLabel(risk.severity) : { label: 'Low', color: 'text-emerald-400' };
+  const fema = climate?.climateData;
+  if (!climate?.climateAvailable || fema?.femaFloodRisk == null) return null;
+  return { label: fema.femaFloodRisk };
 }
 
 export default function App() {
@@ -203,7 +193,6 @@ export default function App() {
     ...baseData,
     site: { name: selectedLocation.displayName || selectedLocation.formattedAddress, center: { latitude: selectedLocation.latitude, longitude: selectedLocation.longitude } },
   };
-  const heatRisk = getHeatRisk(data.agents?.climate);
   const floodRisk = getFloodRisk(data.agents?.climate);
   const aqiInfo = aqiCategory(conditions?.aqi);
   const WeatherIcon = weatherIcon(conditions?.weatherCode);
@@ -305,7 +294,6 @@ export default function App() {
         onLocationSelected={handleLocationSelected}
         conditions={conditions}
         aqiInfo={aqiInfo}
-        heatRisk={heatRisk}
         floodRisk={floodRisk}
         WeatherIcon={WeatherIcon}
       />
