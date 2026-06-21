@@ -6,10 +6,13 @@ import {
   CheckCircle2, Loader2, Clock, AlertTriangle,
   Sparkles, BarChart3, TreePine, TrendingUp, Copy, Check,
   Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog,
-  Send, MessageCircle,
+  Send, MessageCircle, Camera,
 } from 'lucide-react';
 import berkeleyData from './mock/berkeleyAnalysis.json';
-import { analyzeNeighborhood, generateVisualization, getConditions, askQuestion } from './services/analysisApi';
+import {
+  analyzeNeighborhood, generateVisualization, getConditions, askQuestion,
+  getStreetViewStatus, streetViewImageUrl, satelliteImageUrl,
+} from './services/analysisApi';
 import LocationSearch from './components/LocationSearch';
 import PresentDayView from './components/PresentDayView';
 import ReferenceImageInput from './components/ReferenceImageInput';
@@ -272,7 +275,6 @@ export default function App() {
   const [analysisState, setAnalysisState] = useState('idle');
   const [agentStatuses, setAgentStatuses] = useState({});
   const [activeTab, setActiveTab] = useState('recs');
-  const [activeTime, setActiveTime] = useState('today');
   const [results, setResults] = useState(null);
   const [copied, setCopied] = useState(false);
   const [visualizingYear, setVisualizingYear] = useState(null);
@@ -287,6 +289,7 @@ export default function App() {
   const [analysisError, setAnalysisError] = useState(null);
   const [userVisionText, setUserVisionText] = useState('');
   const [referenceImage, setReferenceImage] = useState(null);
+  const [presentPhotoUrl, setPresentPhotoUrl] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -296,12 +299,27 @@ export default function App() {
     return () => { cancelled = true; };
   }, [selectedLocation]);
 
+  // The real "now" photo for the 2026 scenario — Street View if covered, satellite otherwise.
+  // Displayed only; never sent to Midjourney or any other generator.
+  useEffect(() => {
+    let cancelled = false;
+    const { latitude, longitude } = selectedLocation;
+    getStreetViewStatus(latitude, longitude)
+      .then(({ available }) => {
+        if (cancelled) return;
+        setPresentPhotoUrl(
+          available ? streetViewImageUrl(latitude, longitude) : satelliteImageUrl(latitude, longitude)
+        );
+      })
+      .catch(() => { if (!cancelled) setPresentPhotoUrl(satelliteImageUrl(latitude, longitude)); });
+    return () => { cancelled = true; };
+  }, [selectedLocation]);
+
   function handleLocationSelected(location) {
     setSelectedLocation(location);
     // A new location invalidates any analysis/scenario/chat state from the previous place.
     setResults(null);
     setAnalysisState('idle');
-    setActiveTime('today');
     setVisualizedImages({});
     setVisualizeError(null);
     setSelectedScenario('2040');
@@ -321,7 +339,6 @@ export default function App() {
       const { imageUrl } = await generateVisualization(prompt, referenceImage);
       setVisualizedImages(prev => ({ ...prev, [year]: imageUrl }));
       setSelectedScenario(year);
-      setActiveTime(year === '2026' ? 'today' : '2040');
     } catch (err) {
       setVisualizeError(err.message);
     } finally {
@@ -347,7 +364,6 @@ export default function App() {
 
   function selectScenario(year) {
     setSelectedScenario(year);
-    setActiveTime(year === '2026' ? 'today' : '2040');
   }
 
   // Only use the bundled Berkeley demo content when nothing real has been searched yet.
@@ -606,7 +622,7 @@ export default function App() {
                           key={year}
                           year={year}
                           scenario={data.scenarios[year]}
-                          image={visualizedImages[year] || data.scenarios[year]?.visualizationImage}
+                          image={year === '2026' ? presentPhotoUrl : (visualizedImages[year] || data.scenarios[year]?.visualizationImage)}
                           selected={selectedScenario === year}
                           onSelect={() => selectScenario(year)}
                         />
@@ -627,7 +643,12 @@ export default function App() {
                             </div>
                           ))}
                         </div>
-                        {data.scenarios[selectedScenario].visualizationPrompt && (
+                        {selectedScenario === '2026' ? (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
+                            <Camera className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            This is a live Street View / satellite photo of the site today — see the Present-Day View panel.
+                          </div>
+                        ) : data.scenarios[selectedScenario].visualizationPrompt && (
                           <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg p-3">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-xs font-medium text-slate-400">Midjourney prompt</span>
@@ -759,30 +780,25 @@ export default function App() {
           </Marker>
         </MapContainer>
 
-        {/* Future scenario visualization overlay — only after a real analysis has run, never
-            from idly toggling Today/2040 before clicking Analyze. */}
-        {analysisState === 'complete' && activeTime === '2040' && selectedScenario !== '2026' && (visualizedImages[selectedScenario] || data?.scenarios?.[selectedScenario]?.visualizationImage) && (
-          <div className="absolute inset-0 z-[400]">
-            <img
-              src={visualizedImages[selectedScenario] || data.scenarios[selectedScenario].visualizationImage}
-              alt={`${selectedScenario} visualization`}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute top-4 left-4 bg-slate-900/90 border border-emerald-700/50 rounded-lg px-3 py-1.5 backdrop-blur-sm">
-              <span className="text-xs font-semibold text-emerald-400 tracking-wider">{selectedScenario} VISION</span>
+        {/* Selected-scenario visualization overlay — only after a real analysis has run.
+            2026 shows the real Street View/satellite photo; 2040/2075 show the AI render. */}
+        {analysisState === 'complete' && selectedScenario && (() => {
+          const overlaySrc = selectedScenario === '2026'
+            ? presentPhotoUrl
+            : (visualizedImages[selectedScenario] || data?.scenarios?.[selectedScenario]?.visualizationImage);
+          if (!overlaySrc) return null;
+          return (
+            <div className="absolute inset-0 z-[400]">
+              <img src={overlaySrc} alt={`${selectedScenario} view`} className="w-full h-full object-cover" />
+              <div className="absolute top-4 left-4 bg-slate-900/90 border border-emerald-700/50 rounded-lg px-3 py-1.5 backdrop-blur-sm flex items-center gap-1.5">
+                {selectedScenario === '2026' && <Camera className="w-3.5 h-3.5 text-emerald-400" />}
+                <span className="text-xs font-semibold text-emerald-400 tracking-wider">
+                  {selectedScenario === '2026' ? 'TODAY — LIVE PHOTO' : `${selectedScenario} VISION`}
+                </span>
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Map legend — only shown when there's something real to describe. activeTime can
-            only become '2040' as a side effect of selecting a scenario card after a real
-            analysis completes — there's no manual toggle anymore, since pre-analysis there's
-            no data to back a "2040" view at all. */}
-        {activeTime === '2040' && (
-          <div className="absolute bottom-4 right-4 z-[1000] bg-slate-900/90 border border-slate-700 rounded-xl px-3 py-2 backdrop-blur-sm">
-            <span className="text-xs text-emerald-400 font-semibold">{selectedScenario !== '2026' ? selectedScenario : '2040'} scenario</span>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Recommended interventions strip */}

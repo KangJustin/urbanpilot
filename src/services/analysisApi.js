@@ -69,6 +69,16 @@ export async function getStreetViewStatus(lat, lon) {
   return res.json();
 }
 
+// Direct <img src> URLs (not fetch wrappers) for the real present-day photo, used for the
+// 2026 "now" scenario — displayed only, never sent to Midjourney or any other generator.
+export function streetViewImageUrl(lat, lon, { heading = 0, pitch = 0, fov = 90 } = {}) {
+  return `${API_BASE}/api/location/street-view-image?lat=${lat}&lon=${lon}&heading=${heading}&pitch=${pitch}&fov=${fov}`;
+}
+
+export function satelliteImageUrl(lat, lon, { zoom = 18 } = {}) {
+  return `${API_BASE}/api/location/satellite-image?lat=${lat}&lon=${lon}&zoom=${zoom}`;
+}
+
 export async function uploadReferenceImage(file, licenseConfirmed) {
   const formData = new FormData();
   formData.append('image', file);
