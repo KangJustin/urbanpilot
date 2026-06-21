@@ -15,6 +15,10 @@ services:
         sync: false
       - key: TRANSIT_511_API_KEY
         sync: false
+      # the-token-company compression key — claudeService.js wraps the Anthropic client with
+      # this on every agent call, required since that integration was added.
+      - key: TTC_API_KEY
+        sync: false
       # JSON content of server/.mcp-auth/midjourney.json from a machine that has already
       # completed the one-time interactive Midjourney OAuth flow. Lets this headless deploy
       # start already-authenticated instead of trying (and failing) to open a browser itself.
