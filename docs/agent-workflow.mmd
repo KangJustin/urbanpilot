@@ -1,0 +1,27 @@
+flowchart TD
+    U[User searches an address] --> API["POST /api/analyze — { site, goal }"]
+    API --> COORD[coordinator.js: runAnalysis]
+
+    COORD --> CLIMATE
+    COORD --> ACCESS
+    COORD --> HOUSING
+
+    CLIMATE["<b>Climate Agent</b><br/>Fetch: Open-Meteo + FEMA NFHL + NLCD<br/>Build compact prompt + schema<br/>Claude call · parse JSON / fallback"]
+    ACCESS["<b>Accessibility Agent</b><br/>Fetch: 511 SF Bay Regional GTFS<br/>Build compact prompt + schema<br/>Claude call · parse JSON / fallback"]
+    HOUSING["<b>Housing Agent</b><br/>Fetch: U.S. Census ACS<br/>Build compact prompt + schema<br/>Claude call · parse JSON / fallback"]
+
+    CLIMATE & ACCESS & HOUSING --> TTC[(claudeService.js<br/>The Token Company withCompression)]
+
+    TTC --> SYN["<b>Urban Design Agent</b><br/>resolve climate / access / housing tradeoffs"]
+    SYN --> VIS["<b>Vision Agent</b><br/>2026 / 2040 / 2075 scenarios"]
+    VIS --> AGG["Aggregate overall score +<br/>verified-vs-estimated data disclosure"]
+    AGG --> OUT[Response → frontend]
+
+    style TTC fill:#f5f0ff,stroke:#8b5cf6
+    style COORD fill:#eef2ff,stroke:#6366f1
+    style SYN fill:#eef2ff,stroke:#6366f1
+    style VIS fill:#eef2ff,stroke:#6366f1
+    style AGG fill:#eef2ff,stroke:#6366f1
+    style CLIMATE fill:#fffbeb,stroke:#d97706
+    style ACCESS fill:#fffbeb,stroke:#d97706
+    style HOUSING fill:#fffbeb,stroke:#d97706
