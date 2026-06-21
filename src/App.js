@@ -316,6 +316,21 @@ export default function App() {
   const housingAgent = data.agents?.housing;
   const urbanDesignAgent = data.agents?.urban_design;
 
+  // The vision agent independently estimates a "2026" scenario score for narrative purposes
+  // (title/description/visualizationPrompt), but that's a second, separately AI-generated number
+  // for the same point in time the specialist agents already scored — the two can disagree.
+  // The specialist agents' currentConditions scores (shown in the AI Agents cards) are the
+  // authoritative "right now" numbers, so the breakdown's "Current" column must match them exactly.
+  const scenariosForBreakdown = data.scenarios && {
+    ...data.scenarios,
+    2026: {
+      ...data.scenarios['2026'],
+      climateScore: data.currentConditions?.climateScore ?? null,
+      accessibilityScore: data.currentConditions?.accessibilityScore ?? null,
+      housingScore: data.currentConditions?.housingScore ?? null,
+    },
+  };
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-slate-950">
       <TopHeader
@@ -456,7 +471,7 @@ export default function App() {
         <div className="w-[300px] shrink-0 bg-slate-900 border-l border-slate-800 overflow-y-auto px-4 py-4 space-y-3">
           {analysisState === 'complete' ? (
             <>
-              <ScoreBreakdownPanel scenarios={data.scenarios} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
+              <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
               <RisksPanel risks={allRisks} />
               <RecommendationsPanel recommendations={allRecs} />
               <InterventionsPanel recommendations={allRecs} />
