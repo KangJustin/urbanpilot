@@ -407,7 +407,8 @@ export default function App() {
                 <AgentCard label="Climate Agent" icon={ThermometerSun} iconBg="bg-emerald-900/40" iconColor="text-emerald-400" scoreColor="text-emerald-400"
                   score={climateAgent?.score} bullets={climateAgent?.findings} summary={climateAgent?.summary} />
                 <AgentCard label="Accessibility Agent" icon={Bike} iconBg="bg-sky-900/40" iconColor="text-sky-400" scoreColor="text-sky-400"
-                  score={accessibilityAgent?.score} bullets={accessibilityAgent?.findings} summary={accessibilityAgent?.summary} />
+                  score={accessibilityAgent?.score} bullets={accessibilityAgent?.findings} summary={accessibilityAgent?.summary}
+                  transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData} />
                 <AgentCard label="Housing Agent" icon={Building2} iconBg="bg-amber-900/40" iconColor="text-amber-400" scoreColor="text-amber-400"
                   score={housingAgent?.score} bullets={housingAgent?.findings} summary={housingAgent?.summary} />
                 <AgentCard label="Urban Design Agent" icon={Compass} iconBg="bg-violet-900/40" iconColor="text-violet-400" scoreColor="text-violet-400"
