@@ -7,7 +7,7 @@
 @layer base {
   body {
     margin: 0;
-    @apply bg-up-navy text-slate-100 font-sans antialiased;
+    @apply bg-civic-bg text-civic-text font-sans antialiased;
   }
 }
 
@@ -72,4 +72,16 @@
 }
 .leaflet-control-attribution a {
   color: rgb(101, 112, 106) !important;
+}
+
+/* Civic-planning redesign Phase 6: respect prefers-reduced-motion globally — standard pattern,
+   shortens every animation/transition to effectively instant rather than disabling them
+   individually per component. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

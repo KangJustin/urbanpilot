@@ -12,7 +12,7 @@ import PresentDayView from './PresentDayView';
 // This is the one piece of new state introduced this phase, and it's UI-only (expand/collapse),
 // scoped to this wrapper component rather than App.js — App.js's own hooks/state are untouched.
 export default function StreetViewPanel({ location }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="rounded-lg border border-civic-border bg-civic-surface overflow-hidden">
@@ -20,12 +20,15 @@ export default function StreetViewPanel({ location }) {
         onClick={() => setExpanded(e => !e)}
         aria-expanded={expanded}
         aria-controls="street-view-panel-content"
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-civic-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40">
-        <span className="flex items-center gap-1.5">
-          <Eye className="w-3.5 h-3.5 text-civic-text-muted" />
-          Street View
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40">
+        <span className="flex items-center gap-1.5 text-left">
+          <Eye className="w-3.5 h-3.5 text-civic-text-muted shrink-0" />
+          <span>
+            <span className="block text-xs font-semibold text-civic-text">Street View</span>
+            <span className="block text-[11px] text-civic-text-muted">Preview the selected location</span>
+          </span>
         </span>
-        <ChevronDown className={`w-4 h-4 text-civic-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-4 h-4 text-civic-text-muted transition-transform shrink-0 ${expanded ? 'rotate-180' : ''}`} />
       </button>
       <div
         id="street-view-panel-content"

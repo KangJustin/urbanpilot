@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  CheckCircle2, Loader2, Clock,
-  Sparkles,
   Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog,
 } from 'lucide-react';
 import {
@@ -12,11 +10,13 @@ import StreetViewPanel from './components/StreetViewPanel';
 import TopHeader from './components/TopHeader';
 import ControlStrip from './components/ControlStrip';
 import DataMethodologySection from './components/DataMethodologySection';
+import AnalysisStatusBar from './components/AnalysisStatusBar';
 import ScoreBreakdownPanel from './components/ScoreBreakdownPanel';
 import CurrentConditionsPanel from './components/CurrentConditionsPanel';
 import PlanningFindings from './components/PlanningFindings';
 import MainMapPanel from './components/MainMapPanel';
 import AIAssistantPanel from './components/AIAssistantPanel';
+import ReadyToAnalyzeCard from './components/ReadyToAnalyzeCard';
 
 // Placeholder shown before the user searches for a location. Never re-substituted after a
 // real place is selected — see selectedLocation state in App().
@@ -85,21 +85,6 @@ function getFloodRisk(climate) {
   if (!climate) return null;
   const risk = climate.risks?.find(r => /flood|stormwater|runoff/i.test(r.title));
   return risk ? severityLabel(risk.severity) : { label: 'Low', color: 'text-emerald-400' };
-}
-
-function AgentRow({ label, status }) {
-  return (
-    <div className="flex items-center gap-2.5 py-1.5">
-      {status === 'done' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-      {status === 'running' && <Loader2 className="w-4 h-4 text-sky-400 animate-spin shrink-0" />}
-      {(status === 'queued' || !status) && <Clock className="w-4 h-4 text-slate-600 shrink-0" />}
-      <span className={`text-sm ${status === 'running' ? 'text-sky-300' : status === 'done' ? 'text-white' : 'text-slate-500'}`}>
-        {label}
-      </span>
-      {status === 'running' && <span className="text-xs text-sky-400 ml-auto animate-pulse">Analyzing…</span>}
-      {status === 'done' && <span className="text-xs text-emerald-500 ml-auto">Done</span>}
-    </div>
-  );
 }
 
 export default function App() {
@@ -287,6 +272,7 @@ export default function App() {
   };
 
   const SCENARIO_YEARS = ['2026', '2040', '2075'];
+  const isResults = analysisState === 'complete';
 
   const climateAgent = data.agents?.climate;
   const accessibilityAgent = data.agents?.accessibility;
@@ -309,7 +295,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-slate-950">
+    <div className="h-screen flex flex-col overflow-hidden bg-civic-bg">
       <TopHeader
         siteName={data.site?.name}
         areaKm2={data.site?.areaKm2}
@@ -322,55 +308,97 @@ export default function App() {
         WeatherIcon={WeatherIcon}
       />
 
-      <ControlStrip
-        goal={goal}
-        setGoal={setGoal}
-        years={SCENARIO_YEARS}
-        selectedScenario={selectedScenario}
-        selectScenario={selectScenario}
-        onAnalyze={handleAnalyze}
-        analyzing={analysisState === 'running'}
-        analyzeDisabled={!goal.trim() || analysisState === 'running'}
-        analysisError={analysisError}
-      />
+      {isResults && (
+        <ControlStrip
+          variant="strip"
+          goal={goal}
+          setGoal={setGoal}
+          years={SCENARIO_YEARS}
+          selectedScenario={selectedScenario}
+          selectScenario={selectScenario}
+          onAnalyze={handleAnalyze}
+          analyzing={analysisState === 'running'}
+          analyzeDisabled={!goal.trim() || analysisState === 'running'}
+          analysisError={analysisError}
+        />
+      )}
 
-      {/* Civic-planning redesign Phase 5: stacked (single column, page scrolls) below the lg
-          breakpoint (1024px, matches the "tablet stacks, desktop/small-laptop stay side-by-side"
-          requirement); side-by-side at lg+ with the analysis workspace (left+right, ~59%) wider
-          than the map (~41%), reversing the old fixed-px layout where the map (flex-1 filling
-          whatever's left after two 320/300px sidebars) actually took the majority share. */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
-        {/* Left content panel: Street View, AI agent cards */}
-        <div className="w-full lg:w-[34%] shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col lg:overflow-hidden">
-          <div className="flex-1 lg:overflow-y-auto px-4 py-4 space-y-3">
+      {!isResults && (
+        // Pre-analysis landing state: balanced onboarding / map / preview columns (target
+        // 35-40% / 35-40% / 20-25% at desktop), stacked single-column below lg (1024px).
+        // Collapsible Street View sits full-width below the three columns, collapsed by default.
+        <div className="flex-1 flex flex-col overflow-y-auto">
+          <div className="flex-1 flex flex-col lg:flex-row">
+            <div className="order-1 w-full lg:w-[37%] shrink-0 border-b lg:border-b-0 lg:border-r border-civic-border px-4 sm:px-5 py-4 lg:overflow-y-auto space-y-4">
+              <ControlStrip
+                variant="panel"
+                goalChips={GOAL_CHIPS}
+                goal={goal}
+                setGoal={setGoal}
+                years={SCENARIO_YEARS}
+                selectedScenario={selectedScenario}
+                selectScenario={selectScenario}
+                onAnalyze={handleAnalyze}
+                analyzing={analysisState === 'running'}
+                analyzeDisabled={!goal.trim() || analysisState === 'running'}
+                analysisError={analysisError}
+              />
+              <AnalysisStatusBar
+                analysisState={analysisState}
+                analysisError={analysisError}
+                agentStatuses={agentStatuses}
+                agents={AGENTS}
+              />
+            </div>
+
+            <div className="order-2 w-full lg:w-[37%] min-h-[360px] lg:min-h-0 shrink-0 flex flex-col border-b lg:border-b-0 lg:border-r border-civic-border">
+              <MainMapPanel
+                selectedLocation={selectedLocation}
+                analysisState={analysisState}
+                selectedScenario={selectedScenario}
+                selectScenario={selectScenario}
+                visualizedImages={visualizedImages}
+                presentPhotoUrl={presentPhotoUrl}
+                presentPhotoSource={presentPhotoSource}
+                data={data}
+                scenarioYears={SCENARIO_YEARS}
+                userVisionText={userVisionText}
+                setUserVisionText={setUserVisionText}
+                referenceImage={referenceImage}
+                setReferenceImage={setReferenceImage}
+                handleGenerateVisualization={handleGenerateVisualization}
+                visualizingYear={visualizingYear}
+                visualizeError={visualizeError}
+                copied={copied}
+                setCopied={setCopied}
+              />
+            </div>
+
+            <div className="order-3 w-full lg:w-[26%] shrink-0 px-4 sm:px-5 py-4">
+              <ReadyToAnalyzeCard />
+            </div>
+          </div>
+
+          <div className="shrink-0 border-t border-civic-border px-4 sm:px-5 py-3">
             <StreetViewPanel location={selectedLocation} />
+          </div>
+        </div>
+      )}
 
-            {analysisState === 'idle' && (
-              <div>
-                <div className="text-xs text-slate-500 mb-2">Suggested planning goals</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {GOAL_CHIPS.map(chip => (
-                    <button
-                      key={chip}
-                      onClick={() => setGoal(chip)}
-                      className="text-[11px] px-2.5 py-1.5 rounded-full bg-slate-800/60 hover:bg-slate-700 border border-slate-700/60 text-slate-300 transition-colors">
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+      {isResults && (
+        <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+          {/* Left content panel: Street View, AI agent cards */}
+          <div className="order-2 lg:order-none w-full lg:w-[34%] shrink-0 bg-civic-bg border-b lg:border-b-0 lg:border-r border-civic-border flex flex-col lg:overflow-hidden">
+            <div className="flex-1 lg:overflow-y-auto px-4 py-4 space-y-3">
+              <StreetViewPanel location={selectedLocation} />
 
-            {(analysisState === 'running' || analysisState === 'complete') && (
-              <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg px-4 py-3">
-                <div className="text-xs text-slate-500 mb-2">Agent pipeline</div>
-                {AGENTS.map(a => (
-                  <AgentRow key={a.id} label={a.label} status={agentStatuses[a.id]} />
-                ))}
-              </div>
-            )}
+              <AnalysisStatusBar
+                analysisState={analysisState}
+                analysisError={analysisError}
+                agentStatuses={agentStatuses}
+                agents={AGENTS}
+              />
 
-            {analysisState === 'complete' && (
               <DataMethodologySection
                 climateAgent={climateAgent}
                 accessibilityAgent={accessibilityAgent}
@@ -379,54 +407,43 @@ export default function App() {
                 overallScore={data.currentConditions?.overallScore}
                 limitationsText={data.dataDisclosure?.limitations?.[0]}
               />
-            )}
+            </div>
+          </div>
+
+          <div className="order-3 lg:order-none w-full lg:w-[41%] lg:flex-1 min-h-[420px] lg:min-h-0 shrink-0 flex flex-col">
+            <MainMapPanel
+              selectedLocation={selectedLocation}
+              analysisState={analysisState}
+              selectedScenario={selectedScenario}
+              selectScenario={selectScenario}
+              visualizedImages={visualizedImages}
+              presentPhotoUrl={presentPhotoUrl}
+              presentPhotoSource={presentPhotoSource}
+              data={data}
+              scenarioYears={SCENARIO_YEARS}
+              userVisionText={userVisionText}
+              setUserVisionText={setUserVisionText}
+              referenceImage={referenceImage}
+              setReferenceImage={setReferenceImage}
+              handleGenerateVisualization={handleGenerateVisualization}
+              visualizingYear={visualizingYear}
+              visualizeError={visualizeError}
+              copied={copied}
+              setCopied={setCopied}
+            />
+          </div>
+
+          <div className="order-1 lg:order-none w-full lg:w-[25%] shrink-0 bg-civic-bg border-b lg:border-b-0 lg:border-l border-civic-border lg:overflow-y-auto px-4 py-4 space-y-3">
+            <CurrentConditionsPanel
+              climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData}
+              transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData}
+              censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData}
+            />
+            <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
+            <PlanningFindings risks={allRisks} recommendations={allRecs} />
           </div>
         </div>
-
-        <div className="w-full lg:w-[41%] lg:flex-1 min-h-[420px] lg:min-h-0 shrink-0 flex flex-col">
-          <MainMapPanel
-            selectedLocation={selectedLocation}
-            analysisState={analysisState}
-            selectedScenario={selectedScenario}
-            selectScenario={selectScenario}
-            visualizedImages={visualizedImages}
-            presentPhotoUrl={presentPhotoUrl}
-            presentPhotoSource={presentPhotoSource}
-            data={data}
-            scenarioYears={SCENARIO_YEARS}
-            userVisionText={userVisionText}
-            setUserVisionText={setUserVisionText}
-            referenceImage={referenceImage}
-            setReferenceImage={setReferenceImage}
-            handleGenerateVisualization={handleGenerateVisualization}
-            visualizingYear={visualizingYear}
-            visualizeError={visualizeError}
-            copied={copied}
-            setCopied={setCopied}
-          />
-        </div>
-
-        {/* Right analysis panel — only shows real output from a completed analysis; never the
-            pre-search Berkeley placeholder, which would look like real scores for no reason. */}
-        <div className="w-full lg:w-[25%] shrink-0 bg-slate-900 border-l border-slate-800 lg:overflow-y-auto px-4 py-4 space-y-3">
-          {analysisState === 'complete' ? (
-            <>
-              <CurrentConditionsPanel
-                climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData}
-                transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData}
-                censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData}
-              />
-              <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
-              <PlanningFindings risks={allRisks} recommendations={allRecs} />
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center text-center h-full text-slate-500 px-2">
-              <Sparkles className="w-6 h-6 mb-2 text-slate-600" />
-              <p className="text-xs">Scores, risks, and recommendations will appear here after you run an analysis.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       <AIAssistantPanel
         chatMessages={chatMessages}

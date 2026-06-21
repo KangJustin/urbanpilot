@@ -58,7 +58,7 @@ export default function AgentCard({
         {transitAvailable === true && (
           <div className="mt-3 pt-3 border-t border-civic-border">
             <div className="flex items-center justify-between mb-1.5 gap-2">
-              <span className="text-[11px] font-medium text-civic-text-muted">Verified Transit ({transitData?.source || '511 SF Bay Regional GTFS'})</span>
+              <span className="text-[11px] font-medium text-civic-text-muted">Transit Data ({transitData?.source || '511 SF Bay Regional GTFS'})</span>
               <ProvenanceChip status="verified" source="511" className="shrink-0" />
             </div>
             <ul className="space-y-1">
@@ -83,7 +83,7 @@ export default function AgentCard({
         {censusAvailable === true && (
           <div className="mt-3 pt-3 border-t border-civic-border">
             <div className="flex items-center justify-between mb-1.5 gap-2">
-              <span className="text-[11px] font-medium text-civic-text-muted">Verified Housing ({censusData?.source || 'ACS 5-Year'})</span>
+              <span className="text-[11px] font-medium text-civic-text-muted">Housing Data ({censusData?.source || 'ACS 5-Year'})</span>
               <ProvenanceChip status="verified" source="ACS" className="shrink-0" />
             </div>
             <ul className="space-y-1">
@@ -108,7 +108,7 @@ export default function AgentCard({
         {climateAvailable === true && (
           <div className="mt-3 pt-3 border-t border-civic-border">
             <div className="flex items-center justify-between mb-1.5 gap-2">
-              <span className="text-[11px] font-medium text-civic-text-muted">Verified Climate Data</span>
+              <span className="text-[11px] font-medium text-civic-text-muted">Climate Data</span>
               <ProvenanceChip status="verified" source="Open-Meteo" className="shrink-0" />
             </div>
             <ul className="space-y-1">
