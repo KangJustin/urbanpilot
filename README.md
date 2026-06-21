@@ -138,21 +138,6 @@ cd server && node index.js   # backend, http://localhost:3001
 The frontend hot-reloads on save. The backend doesn't — restart it after editing anything in
 `server/`. (`npm run dev` in `server/` uses `node --watch` if you'd rather it restart itself.)
 
-## Deployment
-
-`render.yaml` at the repo root declares a two-service Render deployment: `urbanpilot-backend`
-(Node web service, `rootDir: server`) and `urbanpilot-frontend` (static site built from the
-React app). Notable deploy-only details not covered above:
-
-- The backend needs every key from the Required table above, plus `MIDJOURNEY_TOKEN_CACHE` — the
-  JSON contents of a `server/.mcp-auth/midjourney.json` produced by completing the interactive
-  Midjourney OAuth flow once on a machine with a browser. This lets the headless deploy start
-  already-authenticated instead of trying (and failing) to open a browser itself.
-- `ALLOWED_ORIGINS` (backend) and `REACT_APP_API_URL` (frontend) reference each other's eventual
-  URLs, so they have to be set *after* both services exist for the first time.
-- CRA bakes `REACT_APP_*` variables in at build time — changing one requires a redeploy, not just
-  an env var update.
-
 ## Token compression (The Token Company)
 
 ### Standalone benchmark
