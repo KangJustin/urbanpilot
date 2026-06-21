@@ -364,46 +364,55 @@ export default function App() {
       )}
 
       {isResults && (
-        // Two workspaces from one flat grid: every item carries both an `order` (the exact
-        // mobile/tablet reading sequence from the spec) and an `lg:col-start` (which workspace it
-        // belongs to at 1024px+). Below lg, col-start is unset, so the grid collapses to a single
-        // column and items fall into the interleaved order; at lg+, `grid-flow-dense` backfills
-        // each column's empty cells (sparse, the default, only scans forward from the last-placed
-        // cell and leaves column 2 blank for as many rows as column 1 has shorter items stacked
-        // ahead of it — dense fixes that and gives the intended independent-column stacking).
+        // Two genuinely independent workspaces, not a shared CSS Grid. A single grid with both
+        // columns' items placed into shared row tracks (even with grid-flow-dense) forces each
+        // row to the height of its TALLEST cell — e.g. pairing the short Current Conditions card
+        // with the tall Map in the same row stretches that whole row to the map's height, leaving
+        // blank page-background under Current Conditions. dense only changes which cell an item
+        // lands in, never the row track size, so it can't fix this. Two sibling flex-col stacks
+        // have no shared row tracks at all: each column's height is purely the sum of its own
+        // children, independent of the other column's content length, by construction.
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[59fr_41fr] lg:grid-flow-dense gap-3 lg:gap-x-6 lg:gap-y-4 px-4 sm:px-5 py-4">
-            <div className="order-1 lg:col-start-1">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 px-4 sm:px-5 py-4">
+            {/* Analysis workspace, ~59% at lg+. Below lg this renders first, full-width. */}
+            <div className="flex flex-col gap-4 lg:w-[59%]">
               <CurrentConditionsPanel
                 climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData}
                 transitAvailable={accessibilityAgent?.transitAvailable} transitData={accessibilityAgent?.transitData}
                 censusAvailable={housingAgent?.censusAvailable} censusData={housingAgent?.censusData}
               />
-            </div>
-
-            <div className="order-2 lg:col-start-1">
               <ScoreBreakdownPanel scenarios={scenariosForBreakdown} years={SCENARIO_YEARS} selectedYear={selectedScenario} />
-            </div>
-
-            <div className="order-3 lg:col-start-1">
               <PlanningFindings risks={allRisks} recommendations={allRecs} />
-            </div>
-
-            <div className="order-4 lg:col-start-2 h-[420px] lg:h-[460px] flex flex-col rounded-lg border border-civic-border overflow-hidden">
-              <MainMapPanel
-                selectedLocation={selectedLocation}
+              <DataMethodologySection
+                climateAgent={climateAgent}
+                accessibilityAgent={accessibilityAgent}
+                housingAgent={housingAgent}
+                urbanDesignAgent={urbanDesignAgent}
+                overallScore={data.currentConditions?.overallScore}
+                limitationsText={data.dataDisclosure?.limitations?.[0]}
+              />
+              <AnalysisStatusBar
                 analysisState={analysisState}
-                selectedScenario={selectedScenario}
-                visualizedImages={visualizedImages}
-                presentPhotoUrl={presentPhotoUrl}
-                data={data}
+                analysisError={analysisError}
+                agentStatuses={agentStatuses}
+                agents={AGENTS}
               />
             </div>
 
-            {/* Directly under the map, not buried below Risks/Data & Methodology — this is the
-                button that actually produces the 2040/2075 image the map panel displays, so it
-                belongs next to the map, not several scrolls down. */}
-            <div className="order-5 lg:col-start-2">
+            {/* Spatial workspace, ~41% at lg+. Below lg this renders second, full-width. */}
+            <div className="flex flex-col gap-4 lg:w-[41%]">
+              <div className="h-[420px] lg:h-[460px] flex flex-col rounded-lg border border-civic-border overflow-hidden">
+                <MainMapPanel
+                  selectedLocation={selectedLocation}
+                  analysisState={analysisState}
+                  selectedScenario={selectedScenario}
+                  visualizedImages={visualizedImages}
+                  presentPhotoUrl={presentPhotoUrl}
+                  data={data}
+                />
+              </div>
+              <ProjectedScenarioChanges data={data} selectedScenario={selectedScenario} presentPhotoSource={presentPhotoSource} />
+              <StreetViewPanel location={selectedLocation} />
               <VisualizeStreetscapeAction
                 data={data}
                 selectedScenario={selectedScenario}
@@ -418,34 +427,6 @@ export default function App() {
                 referenceImage={referenceImage}
                 setReferenceImage={setReferenceImage}
                 presentPhotoUrl={presentPhotoUrl}
-              />
-            </div>
-
-            <div className="order-6 lg:col-start-2">
-              <ProjectedScenarioChanges data={data} selectedScenario={selectedScenario} presentPhotoSource={presentPhotoSource} />
-            </div>
-
-            <div className="order-7 lg:col-start-2">
-              <StreetViewPanel location={selectedLocation} />
-            </div>
-
-            <div className="order-8 lg:col-start-1">
-              <DataMethodologySection
-                climateAgent={climateAgent}
-                accessibilityAgent={accessibilityAgent}
-                housingAgent={housingAgent}
-                urbanDesignAgent={urbanDesignAgent}
-                overallScore={data.currentConditions?.overallScore}
-                limitationsText={data.dataDisclosure?.limitations?.[0]}
-              />
-            </div>
-
-            <div className="order-9 lg:col-start-1">
-              <AnalysisStatusBar
-                analysisState={analysisState}
-                analysisError={analysisError}
-                agentStatuses={agentStatuses}
-                agents={AGENTS}
               />
             </div>
           </div>

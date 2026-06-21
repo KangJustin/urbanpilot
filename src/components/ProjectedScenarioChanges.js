@@ -24,17 +24,20 @@ export default function ProjectedScenarioChanges({ data, selectedScenario, prese
   if (!scenario) return null;
 
   return (
-    <Card>
+    <Card className="flex flex-col lg:min-h-[230px]">
       <CardHeader><CardTitle as="h2">Projected Scenario Changes</CardTitle></CardHeader>
-      <CardContent className="space-y-2.5">
+      <CardContent className="flex-1 space-y-3">
         {scenario.projectedChanges?.length > 0 && (
-          <div className="grid grid-cols-2 gap-2">
+          // Each change is a single AI/backend-authored sentence (not a structured
+          // category/main/supporting triple) — content is unchanged, only the card grows to
+          // fit it (items-start + no truncation) instead of clipping or center-squashing it.
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {scenario.projectedChanges.slice(0, 4).map((c, i) => {
               const MetricIcon = metricIcon(c);
               return (
-                <div key={i} className="flex items-center gap-1.5 bg-civic-surface-secondary border border-civic-border rounded-lg px-2.5 py-1.5">
-                  <MetricIcon className="w-3 h-3 text-civic-accent shrink-0" />
-                  <span className="text-[11px] text-civic-text leading-tight">{c}</span>
+                <div key={i} className="flex items-start gap-1.5 bg-civic-surface-secondary border border-civic-border rounded-lg px-3 py-2 min-h-[56px]">
+                  <MetricIcon className="w-3 h-3 text-civic-accent shrink-0 mt-0.5" />
+                  <span className="text-[11px] text-civic-text leading-snug">{c}</span>
                 </div>
               );
             })}

@@ -15,7 +15,7 @@ export function Card({ className, ...props }) {
 }
 
 export function CardHeader({ className, ...props }) {
-  return <div className={cn('px-4 py-3 border-b border-civic-border', className)} {...props} />;
+  return <div className={cn('px-5 py-3 border-b border-civic-border', className)} {...props} />;
 }
 
 // `as` defaults to 'div' (every existing call site keeps rendering a div, unchanged) — pass
@@ -26,5 +26,5 @@ export function CardTitle({ className, as: Tag = 'div', ...props }) {
 }
 
 export function CardContent({ className, ...props }) {
-  return <div className={cn('px-4 py-3', className)} {...props} />;
+  return <div className={cn('px-5 py-4', className)} {...props} />;
 }
