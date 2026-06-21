@@ -379,11 +379,12 @@ export default function App() {
         // Two workspaces from one flat grid: every item carries both an `order` (the exact
         // mobile/tablet reading sequence from the spec) and an `lg:col-start` (which workspace it
         // belongs to at 1024px+). Below lg, col-start is unset, so the grid collapses to a single
-        // column and items fall into the interleaved order; at lg+, each column independently
-        // stacks its own items top-down regardless of the other column's order values — the
-        // standard CSS grid "two independent masonry columns" pattern.
+        // column and items fall into the interleaved order; at lg+, `grid-flow-dense` backfills
+        // each column's empty cells (sparse, the default, only scans forward from the last-placed
+        // cell and leaves column 2 blank for as many rows as column 1 has shorter items stacked
+        // ahead of it — dense fixes that and gives the intended independent-column stacking).
         <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[59fr_41fr] gap-3 lg:gap-x-6 lg:gap-y-4 px-4 sm:px-5 py-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[59fr_41fr] lg:grid-flow-dense gap-3 lg:gap-x-6 lg:gap-y-4 px-4 sm:px-5 py-4">
             <div className="order-1 lg:col-start-1">
               <CurrentConditionsPanel
                 climateAvailable={climateAgent?.climateAvailable} climateData={climateAgent?.climateData}
