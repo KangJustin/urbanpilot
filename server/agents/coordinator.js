@@ -96,8 +96,11 @@ async function runAnalysis(request) {
     },
     scenarios,
     dataDisclosure: {
-      realDataUsed: ['OpenStreetMap street network', 'BART station location', 'City of Berkeley zoning reference'],
-      estimatedData: ['All scores are AI-generated estimates based on Claude\'s knowledge of the site'],
+      // Generic and accurate for any site — no city-specific claims. The only genuinely real
+      // inputs to this analysis are the resolved location itself and the basemap; every score,
+      // finding, and recommendation below is an AI-generated estimate, not verified data.
+      realDataUsed: ['Google Places location data (address, coordinates)', 'OpenStreetMap/CARTO basemap'],
+      estimatedData: ['All scores, findings, and recommendations are AI-generated estimates based on Claude\'s knowledge of the site'],
       limitations: ['Values are AI-generated estimates for planning exploration. Not verified planning data.'],
     },
   };
