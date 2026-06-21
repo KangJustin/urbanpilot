@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import {
   ThermometerSun, Bike, Building2,
-  CheckCircle2, Loader2, Clock, AlertTriangle,
-  Sparkles, BarChart3, TreePine, TrendingUp, Copy, Check,
-  Sun, Cloud, CloudRain, CloudSnow, CloudLightning, CloudFog,
+  Loader2, Sparkles, BarChart3, TrendingUp, Copy, Check,
   Send, MessageCircle, Camera,
 } from 'lucide-react';
 import berkeleyData from './mock/berkeleyAnalysis.json';
@@ -13,9 +11,24 @@ import {
   analyzeNeighborhood, generateVisualization, getConditions, askQuestion,
   getStreetViewStatus, streetViewImageUrl, satelliteImageUrl,
 } from './services/analysisApi';
+import {
+  DEFAULT_LOCATION, AGENTS, RESULT_TABS, SCENARIO_YEARS, SUGGESTED_QUESTIONS,
+} from './constants/planning';
+import {
+  weatherIcon, aqiCategory, getHeatRisk, getFloodRisk, isBerkeleyLocation,
+} from './utils/planningHelpers';
+import AppShell from './components/layout/AppShell';
+import TopHeader from './components/layout/TopHeader';
 import LocationSearch from './components/LocationSearch';
 import PresentDayView from './components/PresentDayView';
 import ReferenceImageInput from './components/ReferenceImageInput';
+import ScoreRing from './components/shared/ScoreRing';
+import AgentPipeline from './components/analysis/AgentPipeline';
+import RecommendationCard from './components/insights/RecommendationCard';
+import RisksPanel from './components/insights/RisksPanel';
+import ScenarioCard from './components/scenarios/ScenarioCard';
+import InterventionsStrip from './components/interventions/InterventionsStrip';
+import RecenterMap from './components/map/RecenterMap';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -23,252 +36,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
-
-// Placeholder shown before the user searches for a location. Never re-substituted after a
-// real place is selected — see selectedLocation state in App().
-const DEFAULT_LOCATION = {
-  placeId: null,
-  displayName: 'Downtown Berkeley, CA',
-  formattedAddress: 'Downtown Berkeley, CA',
-  latitude: 37.8703,
-  longitude: -122.2677,
-};
-
-const AGENTS = [
-  { id: 'coordinator', label: 'Coordinator' },
-  { id: 'climate', label: 'Climate Agent' },
-  { id: 'accessibility', label: 'Accessibility Agent' },
-  { id: 'housing', label: 'Housing Agent' },
-  { id: 'urban_design', label: 'Urban Design Agent' },
-];
-
-const COST_COLORS = { low: 'text-emerald-400', medium: 'text-amber-400', high: 'text-rose-400' };
-const SEVERITY_COLORS = [null, 'bg-emerald-500', 'bg-emerald-400', 'bg-amber-400', 'bg-rose-400', 'bg-rose-600'];
-
-// WMO weather codes -> icon, per https://open-meteo.com/en/docs
-function weatherIcon(code) {
-  if (code === 0) return Sun;
-  if ([1, 2, 3].includes(code)) return Cloud;
-  if ([45, 48].includes(code)) return CloudFog;
-  if (code >= 51 && code <= 67) return CloudRain;
-  if (code >= 71 && code <= 77) return CloudSnow;
-  if (code >= 80 && code <= 99) return CloudLightning;
-  return Cloud;
-}
-
-function aqiCategory(aqi) {
-  if (aqi == null) return null;
-  if (aqi <= 50) return { label: 'Good', color: 'text-emerald-400' };
-  if (aqi <= 100) return { label: 'Moderate', color: 'text-amber-400' };
-  if (aqi <= 150) return { label: 'Unhealthy (SG)', color: 'text-orange-400' };
-  if (aqi <= 200) return { label: 'Unhealthy', color: 'text-rose-400' };
-  return { label: 'Very Unhealthy', color: 'text-purple-400' };
-}
-
-function severityLabel(severity) {
-  if (severity >= 4) return { label: 'High', color: 'text-rose-400' };
-  if (severity === 3) return { label: 'Moderate', color: 'text-amber-400' };
-  return { label: 'Low', color: 'text-emerald-400' };
-}
-
-function getHeatRisk(climate) {
-  if (!climate) return null;
-  const risk = climate.risks?.find(r => /heat/i.test(r.title));
-  if (risk) return severityLabel(risk.severity);
-  if (climate.score >= 70) return { label: 'Low', color: 'text-emerald-400' };
-  if (climate.score >= 50) return { label: 'Moderate', color: 'text-amber-400' };
-  return { label: 'High', color: 'text-rose-400' };
-}
-
-function getFloodRisk(climate) {
-  if (!climate) return null;
-  const risk = climate.risks?.find(r => /flood|stormwater|runoff/i.test(r.title));
-  return risk ? severityLabel(risk.severity) : { label: 'Low', color: 'text-emerald-400' };
-}
-
-// The decorative intervention pins/overlay circles use real Downtown Berkeley street
-// coordinates and can't be procedurally generated for an arbitrary address — only show them
-// when the selected location actually is Berkeley.
-function isBerkeleyLocation(location) {
-  const text = `${location?.displayName || ''} ${location?.formattedAddress || ''}`.toLowerCase();
-  return text.includes('berkeley');
-}
-
-function StatBadge({ label, value, color }) {
-  return (
-    <div className="text-right shrink-0">
-      <div className="text-[10px] text-slate-500 leading-tight">{label}</div>
-      <div className={`text-xs font-semibold leading-tight ${color}`}>{value}</div>
-    </div>
-  );
-}
-
-// react-leaflet's MapContainer center/zoom props only apply on first mount; recenter
-// explicitly whenever the selected location changes.
-function RecenterMap({ center, zoom }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, zoom);
-  }, [center, map, zoom]);
-  return null;
-}
-
-function ScoreRing({ label, score, icon: Icon, color, stroke }) {
-  const r = 22;
-  const circ = 2 * Math.PI * r;
-  const filled = (score / 100) * circ;
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="relative w-14 h-14">
-        <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
-          <circle cx="28" cy="28" r={r} fill="none" stroke="#1e293b" strokeWidth="5" />
-          <circle cx="28" cy="28" r={r} fill="none" stroke={stroke} strokeWidth="5"
-            strokeDasharray={`${filled} ${circ}`} strokeLinecap="round"
-            style={{ transition: 'stroke-dasharray 0.8s ease' }} />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-sm font-bold ${color}`}>{score}</span>
-        </div>
-      </div>
-      <div className={`flex items-center gap-1 text-xs ${color} opacity-70`}>
-        <Icon className="w-3 h-3" />
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function AgentRow({ label, status }) {
-  return (
-    <div className="flex items-center gap-2.5 py-1.5">
-      {status === 'done' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-      {status === 'running' && <Loader2 className="w-4 h-4 text-sky-400 animate-spin shrink-0" />}
-      {(status === 'queued' || !status) && <Clock className="w-4 h-4 text-slate-600 shrink-0" />}
-      <span className={`text-sm ${status === 'running' ? 'text-sky-300' : status === 'done' ? 'text-white' : 'text-slate-500'}`}>
-        {label}
-      </span>
-      {status === 'running' && <span className="text-xs text-sky-400 ml-auto animate-pulse">Analyzing…</span>}
-      {status === 'done' && <span className="text-xs text-emerald-500 ml-auto">Done</span>}
-    </div>
-  );
-}
-
-function RiskItem({ risk }) {
-  return (
-    <div className="flex gap-3 py-2 border-b border-slate-800/60 last:border-0">
-      <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${SEVERITY_COLORS[risk.severity] || 'bg-slate-500'}`} />
-      <div>
-        <div className="text-sm font-medium text-white">{risk.title}</div>
-        <div className="text-xs text-slate-400 mt-0.5 leading-relaxed">{risk.description}</div>
-      </div>
-    </div>
-  );
-}
-
-function RecommendationCard({ rec }) {
-  const cat = rec.id?.startsWith('cr') ? 'climate' : rec.id?.startsWith('ar') ? 'accessibility' : 'housing';
-  const styles = {
-    climate: { border: 'border-emerald-900', accent: 'text-emerald-400', icon: <TreePine className="w-3 h-3" /> },
-    accessibility: { border: 'border-sky-900', accent: 'text-sky-400', icon: <Bike className="w-3 h-3" /> },
-    housing: { border: 'border-amber-900', accent: 'text-amber-400', icon: <Building2 className="w-3 h-3" /> },
-  }[cat] || { border: 'border-slate-700', accent: 'text-slate-400', icon: null };
-
-  return (
-    <div className={`rounded-lg border ${styles.border} bg-slate-800/30 p-3 mb-2`}>
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className={styles.accent}>{styles.icon}</span>
-          <span className="text-sm font-medium text-white">{rec.title}</span>
-        </div>
-        <span className={`text-xs shrink-0 ${COST_COLORS[rec.cost] || 'text-slate-400'}`}>{rec.cost}</span>
-      </div>
-      <p className="text-xs text-slate-400 leading-relaxed mb-2">{rec.description}</p>
-      {rec.timeline && (
-        <span className="text-xs text-slate-600 bg-slate-800 px-2 py-0.5 rounded-full">
-          {rec.timeline.replace('_', ' ')}
-        </span>
-      )}
-    </div>
-  );
-}
-
-const INTERVENTION_IMAGES = [
-  { match: /tree canopy|street tree/i, img: '/images/interventions/tree-canopy.jpg' },
-  { match: /bioswale|permeable|green infrastructure|stormwater/i, img: '/images/interventions/permeable-streets.jpg' },
-  { match: /ada|crossing|accessib/i, img: '/images/interventions/ada-crossing.jpg' },
-  { match: /bike|bicycle|cycling/i, img: '/images/interventions/transit-expansion.jpg' },
-  { match: /transit-oriented|mixed-use housing|affordable housing/i, img: '/images/interventions/affordable-housing.jpg' },
-  { match: /infill|small-site|small-lot/i, img: '/images/interventions/infill-housing.jpg' },
-];
-
-function getInterventionImage(rec) {
-  const text = `${rec.title} ${rec.description}`;
-  return INTERVENTION_IMAGES.find(m => m.match.test(text))?.img || null;
-}
-
-function InterventionCard({ rec }) {
-  const cat = rec.id?.startsWith('cr') ? 'climate' : rec.id?.startsWith('ar') ? 'accessibility' : 'housing';
-  const image = getInterventionImage(rec);
-  const styles = {
-    climate: { icon: <TreePine className="w-5 h-5" />, grad: 'from-emerald-900 to-emerald-950' },
-    accessibility: { icon: <Bike className="w-5 h-5" />, grad: 'from-sky-900 to-sky-950' },
-    housing: { icon: <Building2 className="w-5 h-5" />, grad: 'from-amber-900 to-amber-950' },
-  }[cat];
-  const topImpact = Object.entries(rec.impact || {}).sort((a, b) => b[1] - a[1])[0];
-
-  return (
-    <div className="shrink-0 w-[140px] rounded-lg overflow-hidden border border-slate-700/60 bg-slate-900">
-      <div className={`h-[70px] ${image ? '' : `bg-gradient-to-br ${styles.grad} flex items-center justify-center text-slate-500`}`}>
-        {image ? <img src={image} alt={rec.title} className="w-full h-full object-cover" /> : styles.icon}
-      </div>
-      <div className="p-2">
-        <div className="text-[11px] font-semibold text-white leading-tight mb-1 line-clamp-2">{rec.title}</div>
-        {topImpact && (
-          <div className="text-[10px] text-emerald-400">+{topImpact[1]} {topImpact[0]}</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ScenarioScoreMini({ label, score }) {
-  return (
-    <div className="text-center">
-      <div className="text-[13px] font-bold text-white leading-tight">{score}</div>
-      <div className="text-[9px] text-slate-500 leading-tight">{label}</div>
-    </div>
-  );
-}
-
-function ScenarioCard({ year, scenario, image, selected, onSelect }) {
-  if (!scenario) return null;
-  return (
-    <button
-      onClick={onSelect}
-      className={`shrink-0 w-[150px] text-left rounded-lg overflow-hidden border transition-colors ${
-        selected ? 'border-emerald-500 ring-1 ring-emerald-500/50' : 'border-slate-700/60 hover:border-slate-600'
-      }`}>
-      <div className="h-[84px] bg-slate-800">
-        {image ? (
-          <img src={image} alt={`${year} visualization`} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-600">
-            <Sparkles className="w-5 h-5" />
-          </div>
-        )}
-      </div>
-      <div className="p-2 bg-slate-800/60">
-        <div className="text-xs font-bold text-white">{year}</div>
-        <div className="text-[10px] text-slate-500 mb-1.5 truncate">{scenario.title?.replace(`${year}: `, '').replace(`Berkeley ${year}: `, '')}</div>
-        <div className="grid grid-cols-3 gap-1">
-          <ScenarioScoreMini label="Climate" score={scenario.climateScore} />
-          <ScenarioScoreMini label="Access" score={scenario.accessibilityScore} />
-          <ScenarioScoreMini label="Housing" score={scenario.housingScore} />
-        </div>
-      </div>
-    </button>
-  );
-}
 
 export default function App() {
   const [goal, setGoal] = useState('');
@@ -300,10 +67,6 @@ export default function App() {
     return () => { cancelled = true; };
   }, [selectedLocation]);
 
-  // The real "now" photo for the site — Street View if covered, satellite otherwise. Used to
-  // display the 2026 scenario, and (per explicit product decision, accepting the associated
-  // Google Maps Platform ToS risk) as the default Midjourney reference image for 2040/2075
-  // when the user hasn't uploaded their own photo.
   useEffect(() => {
     let cancelled = false;
     const { latitude, longitude } = selectedLocation;
@@ -323,7 +86,6 @@ export default function App() {
 
   function handleLocationSelected(location) {
     setSelectedLocation(location);
-    // A new location invalidates any analysis/scenario/chat state from the previous place.
     setResults(null);
     setAnalysisState('idle');
     setVisualizedImages({});
@@ -341,8 +103,6 @@ export default function App() {
     const prompt = userVisionText.trim()
       ? `${basePrompt} Additional requested changes: ${userVisionText.trim()}.`
       : basePrompt;
-    // Default to the real captured photo as the Midjourney reference unless the user uploaded
-    // their own — accepted product decision, not a per-image user consent checkbox.
     const effectiveReferenceImage = referenceImage || (presentPhotoUrl
       ? { imageUrl: presentPhotoUrl, source: presentPhotoSource, licenseConfirmed: true }
       : null);
@@ -377,14 +137,8 @@ export default function App() {
     setSelectedScenario(year);
   }
 
-  // Only use the bundled Berkeley demo content when nothing real has been searched yet.
-  // Once a real location is selected, every section (scores, scenarios, the map's 2040/2075
-  // image overlay) must stay empty until a fresh analysis actually completes for it — never
-  // let the canned Berkeley mock content bleed through under a different address.
   const hasRealData = !!results || !selectedLocation.placeId;
   const baseData = hasRealData ? (results || berkeleyData) : { agents: {}, scenarios: {}, dataDisclosure: {} };
-  // Site identity always follows the single source of truth (selectedLocation), even before
-  // an analysis has run for it — never let a stale Berkeley site name linger after a new search.
   const data = {
     ...baseData,
     site: selectedLocation.placeId
@@ -460,322 +214,265 @@ export default function App() {
       setAnalysisState('complete');
       setActiveTab('recs');
     } else if (analyzeFailed && !isBerkeleyLocation(selectedLocation)) {
-      // Don't silently fall back to stale Berkeley demo content for a real, different location.
       setAnalysisError('Analysis failed for this location. Please try again.');
       setAnalysisState('idle');
     } else {
-      // Preserves the original Berkeley demo's graceful fallback behavior.
       setAnalysisError(null);
       setAnalysisState('complete');
       setActiveTab('recs');
     }
   };
 
-  const RESULT_TABS = [
-    { id: 'recs', label: 'Plan' },
-    { id: 'risks', label: 'Risks' },
-    { id: 'scenarios', label: 'Future' },
-    { id: 'ask', label: 'Ask AI' },
-  ];
+  const sidebar = (
+    <aside className="w-[380px] bg-up-charcoal border-r border-up-border flex flex-col overflow-hidden shrink-0">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <LocationSearch onLocationSelected={handleLocationSelected} />
+        <PresentDayView location={selectedLocation} />
 
-  const SCENARIO_YEARS = ['2026', '2040', '2075'];
-
-  const SUGGESTED_QUESTIONS = [
-    'How will this area handle extreme heat?',
-    'What is the impact of increasing density here?',
-    'Which recommendation has the biggest equity benefit?',
-    'What are the biggest risks if we do nothing?',
-  ];
-
-  return (
-    <div className="h-screen flex flex-col overflow-hidden bg-slate-950">
-      {/* Top bar */}
-      <div className="shrink-0 border-b border-slate-800 bg-slate-900 px-5 py-3 flex items-center gap-5 overflow-x-auto">
-        <div className="flex items-center gap-2 shrink-0">
-          <Sparkles className="w-5 h-5 text-emerald-400" />
-          <span className="text-sm font-bold text-white tracking-tight">UrbanPilot</span>
-        </div>
-        <div className="w-px h-8 bg-slate-700 shrink-0" />
-        <div className="shrink-0">
-          <div className="text-sm font-bold text-white leading-tight">{data.site?.name}</div>
-          <div className="text-[11px] text-slate-500 leading-tight">
-            {data.site?.areaKm2 != null && `Area: ${data.site.areaKm2} km²`}
-            {data.site?.areaKm2 != null && data.site?.population != null && ' · '}
-            {data.site?.population != null && `Population: ${data.site.population.toLocaleString()}`}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-5 ml-auto shrink-0">
-          {conditions?.temperatureF != null && (
-            <div className="flex items-center gap-1.5 text-sm text-slate-200 shrink-0">
-              <WeatherIcon className="w-4 h-4 text-amber-300" />
-              {Math.round(conditions.temperatureF)}°F
+        <div>
+          <label className="up-label block mb-2">Planning goal</label>
+          <textarea
+            value={goal}
+            onChange={e => setGoal(e.target.value)}
+            placeholder="e.g. Add housing near transit while reducing heat and improving biking"
+            className="up-input w-full text-sm px-3 py-2.5 resize-none"
+            rows={3}
+          />
+          <button
+            type="button"
+            onClick={handleAnalyze}
+            disabled={!goal.trim() || analysisState === 'running'}
+            className="up-btn-primary mt-2 w-full"
+          >
+            {analysisState === 'running' ? 'Analyzing…' : 'Analyze'}
+          </button>
+          {analysisError && (
+            <div className="mt-2 text-xs text-rose-400 bg-rose-950/30 border border-rose-900/50 rounded-lg px-3 py-2">
+              {analysisError}
             </div>
           )}
-          {aqiInfo && (
-            <StatBadge label="Air Quality" value={`${aqiInfo.label} · ${conditions.aqi} AQI`} color={aqiInfo.color} />
-          )}
-          {heatRisk && <StatBadge label="Heat Risk" value={heatRisk.label} color={heatRisk.color} />}
-          {floodRisk && <StatBadge label="Flood Risk" value={floodRisk.label} color={floodRisk.color} />}
-          <div className="flex items-center gap-1.5 bg-emerald-900/40 border border-emerald-700/50 rounded-full px-2.5 py-1 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[11px] font-medium text-emerald-400">Live Data</span>
-          </div>
         </div>
-      </div>
 
-      <div className="flex-1 flex overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-[380px] bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-          {/* Location search */}
-          <LocationSearch onLocationSelected={handleLocationSelected} />
+        {(analysisState === 'running' || analysisState === 'complete') && (
+          <AgentPipeline agents={AGENTS} agentStatuses={agentStatuses} />
+        )}
 
-          {/* Present-day view */}
-          <PresentDayView location={selectedLocation} />
-
-          {/* Goal Input */}
-          <div>
-            <label className="block text-xs text-slate-500 mb-2">Planning goal</label>
-            <textarea
-              value={goal}
-              onChange={e => setGoal(e.target.value)}
-              placeholder="e.g. Add housing near transit while reducing heat and improving biking"
-              className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2.5 resize-none placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
-              rows={3}
-            />
-            <button onClick={handleAnalyze}
-              disabled={!goal.trim() || analysisState === 'running'}
-              className="mt-2 w-full py-2.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-500 text-white">
-              {analysisState === 'running' ? 'Analyzing…' : 'Analyze'}
-            </button>
-            {analysisError && (
-              <div className="mt-2 text-xs text-rose-400 bg-rose-950/30 border border-rose-900/50 rounded-lg px-3 py-2">
-                {analysisError}
+        {analysisState === 'complete' && (
+          <>
+            <div className="up-panel px-4 py-4">
+              <div className="flex items-center gap-1.5 up-label mb-3">
+                <BarChart3 className="w-3.5 h-3.5" /> Current conditions
               </div>
-            )}
-          </div>
-
-          {/* Agent Pipeline */}
-          {(analysisState === 'running' || analysisState === 'complete') && (
-            <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg px-4 py-3">
-              <div className="text-xs text-slate-500 mb-2">Agent pipeline</div>
-              {AGENTS.map(a => (
-                <AgentRow key={a.id} label={a.label} status={agentStatuses[a.id]} />
-              ))}
+              <div className="flex justify-around">
+                <ScoreRing label="Climate" score={data.currentConditions?.climateScore ?? 62}
+                  icon={ThermometerSun} color="text-emerald-400" stroke="#10b981" />
+                <ScoreRing label="Access" score={data.currentConditions?.accessibilityScore ?? 71}
+                  icon={Bike} color="text-sky-400" stroke="#38bdf8" />
+                <ScoreRing label="Housing" score={data.currentConditions?.housingScore ?? 48}
+                  icon={Building2} color="text-amber-400" stroke="#f59e0b" />
+              </div>
             </div>
-          )}
 
-          {/* Results */}
-          {analysisState === 'complete' && (
-            <>
-              {/* Score Rings */}
-              <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg px-4 py-4">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
-                  <BarChart3 className="w-3.5 h-3.5" /> Current conditions
-                </div>
-                <div className="flex justify-around">
-                  <ScoreRing label="Climate" score={data.currentConditions?.climateScore ?? 62}
-                    icon={ThermometerSun} color="text-emerald-400" stroke="#10b981" />
-                  <ScoreRing label="Access" score={data.currentConditions?.accessibilityScore ?? 71}
-                    icon={Bike} color="text-sky-400" stroke="#38bdf8" />
-                  <ScoreRing label="Housing" score={data.currentConditions?.housingScore ?? 48}
-                    icon={Building2} color="text-amber-400" stroke="#f59e0b" />
-                </div>
+            <div>
+              <div className="flex gap-1 mb-3">
+                {RESULT_TABS.map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setActiveTab(t.id)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      activeTab === t.id ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
 
-              {/* Result Tabs */}
-              <div>
-                <div className="flex gap-1 mb-3">
-                  {RESULT_TABS.map(t => (
-                    <button key={t.id} onClick={() => setActiveTab(t.id)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                        activeTab === t.id ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'
-                      }`}>
-                      {t.label}
-                    </button>
+              {activeTab === 'recs' && (
+                <div>
+                  {allRecs.slice(0, 5).map(r => <RecommendationCard key={r.id} rec={r} />)}
+                  {data.agents?.urban_design?.summary && (
+                    <div className="mt-3 p-3 bg-slate-800/40 rounded-lg border border-slate-700/40">
+                      <div className="up-label mb-1">Urban Design synthesis</div>
+                      <p className="text-xs text-slate-400 leading-relaxed">{data.agents.urban_design.summary}</p>
+                    </div>
+                  )}
+                  {data.agents?.urban_design?.tradeoffs?.map((t, i) => (
+                    <div key={i} className="mt-2 p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg">
+                      <div className="text-xs font-medium text-amber-400 mb-0.5">{t.issue}</div>
+                      <div className="text-xs text-slate-400">{t.resolution}</div>
+                    </div>
                   ))}
                 </div>
+              )}
 
-                {activeTab === 'recs' && (
-                  <div>
-                    {allRecs.slice(0, 5).map(r => <RecommendationCard key={r.id} rec={r} />)}
-                    {data.agents?.urban_design?.summary && (
-                      <div className="mt-3 p-3 bg-slate-800/40 rounded-lg border border-slate-700/40">
-                        <div className="text-xs text-slate-500 mb-1">Urban Design synthesis</div>
-                        <p className="text-xs text-slate-400 leading-relaxed">{data.agents.urban_design.summary}</p>
-                      </div>
-                    )}
-                    {data.agents?.urban_design?.tradeoffs?.map((t, i) => (
-                      <div key={i} className="mt-2 p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg">
-                        <div className="text-xs font-medium text-amber-400 mb-0.5">{t.issue}</div>
-                        <div className="text-xs text-slate-400">{t.resolution}</div>
-                      </div>
+              {activeTab === 'risks' && <RisksPanel risks={allRisks} />}
+
+              {activeTab === 'scenarios' && data.scenarios && (
+                <div>
+                  <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+                    {SCENARIO_YEARS.map(year => (
+                      <ScenarioCard
+                        key={year}
+                        year={year}
+                        scenario={data.scenarios[year]}
+                        image={year === '2026' ? presentPhotoUrl : (visualizedImages[year] || data.scenarios[year]?.visualizationImage)}
+                        selected={selectedScenario === year}
+                        onSelect={() => selectScenario(year)}
+                      />
                     ))}
                   </div>
-                )}
+                  {data.scenarios[selectedScenario] && (
+                    <>
+                      <div className="rounded-xl bg-gradient-to-br from-emerald-950 via-slate-900 to-sky-950 border border-emerald-800/40 p-4 mb-3">
+                        <div className="text-xs font-semibold text-emerald-400 tracking-wider mb-1">{selectedScenario} VISION</div>
+                        <div className="text-sm font-bold text-white mb-2">{data.scenarios[selectedScenario].title}</div>
+                        <p className="text-xs text-slate-300 leading-relaxed">{data.scenarios[selectedScenario].description}</p>
+                      </div>
+                      <div className="space-y-1.5 mb-3">
+                        {data.scenarios[selectedScenario].projectedChanges?.map((c, i) => (
+                          <div key={i} className="flex items-center gap-2 bg-slate-800/40 rounded-lg px-3 py-2">
+                            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span className="text-xs text-slate-300">{c}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedScenario === '2026' ? (
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
+                          <Camera className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          This is a live Street View / satellite photo of the site today — see the Present-Day View panel.
+                        </div>
+                      ) : data.scenarios[selectedScenario].visualizationPrompt && (
+                        <div className="up-panel p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-slate-400">Midjourney prompt</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(data.scenarios[selectedScenario].visualizationPrompt);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                              }}
+                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors"
+                            >
+                              {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                              {copied ? 'Copied!' : 'Copy'}
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed font-mono mb-2">
+                            {data.scenarios[selectedScenario].visualizationPrompt}
+                          </p>
+                          {!data.scenarios[selectedScenario].visualizationImage && !visualizedImages[selectedScenario] && (
+                            <>
+                              <textarea
+                                value={userVisionText}
+                                onChange={e => setUserVisionText(e.target.value)}
+                                placeholder="Describe how you want this area to change (optional) — e.g. 'Turn this parking lot into a walkable mixed-use neighborhood'"
+                                rows={2}
+                                className="up-input w-full text-xs px-3 py-2 mb-2 resize-none"
+                              />
+                              <div className="mb-2">
+                                <ReferenceImageInput referenceImage={referenceImage} onReferenceImageChange={setReferenceImage} autoPhotoUrl={presentPhotoUrl} />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateVisualization(data.scenarios[selectedScenario].visualizationPrompt, selectedScenario)}
+                                disabled={visualizingYear === selectedScenario}
+                                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-emerald-700/80 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50"
+                              >
+                                {visualizingYear === selectedScenario ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                                {visualizingYear === selectedScenario ? 'Generating…' : 'Generate with Midjourney'}
+                              </button>
+                            </>
+                          )}
+                          {visualizeError && (
+                            <p className="text-xs text-rose-400 mt-2">{visualizeError}</p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
-                {activeTab === 'risks' && (
-                  <div>
-                    {allRisks.map(r => <RiskItem key={r.id} risk={r} />)}
-                    <div className="flex items-center gap-2 mt-3 text-xs text-slate-600">
-                      <AlertTriangle className="w-3.5 h-3.5" />
-                      Severity 1 (low) → 5 (critical)
-                    </div>
+              {activeTab === 'ask' && (
+                <div>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAsk(chatInput); }}
+                      placeholder="Ask a question about this site…"
+                      className="up-input flex-1 text-xs px-3 py-2"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAsk(chatInput)}
+                      disabled={!chatInput.trim() || chatLoading}
+                      className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white transition-colors"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                )}
 
-                {activeTab === 'scenarios' && data.scenarios && (
-                  <div>
-                    <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
-                      {SCENARIO_YEARS.map(year => (
-                        <ScenarioCard
-                          key={year}
-                          year={year}
-                          scenario={data.scenarios[year]}
-                          image={year === '2026' ? presentPhotoUrl : (visualizedImages[year] || data.scenarios[year]?.visualizationImage)}
-                          selected={selectedScenario === year}
-                          onSelect={() => selectScenario(year)}
-                        />
+                  {chatMessages.length === 0 ? (
+                    <div className="space-y-1.5">
+                      <div className="up-label mb-1.5 flex items-center gap-1.5">
+                        <MessageCircle className="w-3.5 h-3.5" /> Try asking:
+                      </div>
+                      {SUGGESTED_QUESTIONS.map(q => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => handleAsk(q)}
+                          className="block w-full text-left text-xs bg-slate-800/40 hover:bg-slate-800 border border-slate-700/40 rounded-lg px-3 py-2 text-slate-300 transition-colors"
+                        >
+                          {q}
+                        </button>
                       ))}
                     </div>
-                    {data.scenarios[selectedScenario] && (
-                      <>
-                        <div className="rounded-xl bg-gradient-to-br from-emerald-950 via-slate-900 to-sky-950 border border-emerald-800/40 p-4 mb-3">
-                          <div className="text-xs font-semibold text-emerald-400 tracking-wider mb-1">{selectedScenario} VISION</div>
-                          <div className="text-sm font-bold text-white mb-2">{data.scenarios[selectedScenario].title}</div>
-                          <p className="text-xs text-slate-300 leading-relaxed">{data.scenarios[selectedScenario].description}</p>
-                        </div>
-                        <div className="space-y-1.5 mb-3">
-                          {data.scenarios[selectedScenario].projectedChanges?.map((c, i) => (
-                            <div key={i} className="flex items-center gap-2 bg-slate-800/40 rounded-lg px-3 py-2">
-                              <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <span className="text-xs text-slate-300">{c}</span>
-                            </div>
-                          ))}
-                        </div>
-                        {selectedScenario === '2026' ? (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2">
-                            <Camera className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            This is a live Street View / satellite photo of the site today — see the Present-Day View panel.
+                  ) : (
+                    <div className="space-y-2">
+                      {chatMessages.map((m, i) => (
+                        <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
+                          <div className={`inline-block max-w-[90%] text-xs rounded-lg px-3 py-2 leading-relaxed ${
+                            m.role === 'user' ? 'bg-emerald-700 text-white' : 'bg-slate-800 text-slate-300'
+                          }`}
+                          >
+                            {m.text}
                           </div>
-                        ) : data.scenarios[selectedScenario].visualizationPrompt && (
-                          <div className="bg-slate-800/50 border border-slate-700/60 rounded-lg p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-medium text-slate-400">Midjourney prompt</span>
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(data.scenarios[selectedScenario].visualizationPrompt);
-                                  setCopied(true);
-                                  setTimeout(() => setCopied(false), 2000);
-                                }}
-                                className="flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors">
-                                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                                {copied ? 'Copied!' : 'Copy'}
-                              </button>
-                            </div>
-                            <p className="text-xs text-slate-500 leading-relaxed font-mono mb-2">
-                              {data.scenarios[selectedScenario].visualizationPrompt}
-                            </p>
-                            {!data.scenarios[selectedScenario].visualizationImage && !visualizedImages[selectedScenario] && (
-                              <>
-                                <textarea
-                                  value={userVisionText}
-                                  onChange={e => setUserVisionText(e.target.value)}
-                                  placeholder="Describe how you want this area to change (optional) — e.g. 'Turn this parking lot into a walkable mixed-use neighborhood'"
-                                  rows={2}
-                                  className="w-full bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 mb-2 resize-none placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
-                                />
-                                <div className="mb-2">
-                                  <ReferenceImageInput referenceImage={referenceImage} onReferenceImageChange={setReferenceImage} autoPhotoUrl={presentPhotoUrl} />
-                                </div>
-                                <button
-                                  onClick={() => handleGenerateVisualization(data.scenarios[selectedScenario].visualizationPrompt, selectedScenario)}
-                                  disabled={visualizingYear === selectedScenario}
-                                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-emerald-700/80 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
-                                  {visualizingYear === selectedScenario ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                                  {visualizingYear === selectedScenario ? 'Generating…' : 'Generate with Midjourney'}
-                                </button>
-                              </>
-                            )}
-                            {visualizeError && (
-                              <p className="text-xs text-rose-400 mt-2">{visualizeError}</p>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'ask' && (
-                  <div>
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleAsk(chatInput); }}
-                        placeholder="Ask a question about this site…"
-                        className="flex-1 bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
-                      />
-                      <button
-                        onClick={() => handleAsk(chatInput)}
-                        disabled={!chatInput.trim() || chatLoading}
-                        className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white transition-colors">
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
+                        </div>
+                      ))}
+                      {chatLoading && (
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Thinking…
+                        </div>
+                      )}
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                    {chatMessages.length === 0 ? (
-                      <div className="space-y-1.5">
-                        <div className="text-xs text-slate-500 mb-1.5 flex items-center gap-1.5">
-                          <MessageCircle className="w-3.5 h-3.5" /> Try asking:
-                        </div>
-                        {SUGGESTED_QUESTIONS.map(q => (
-                          <button
-                            key={q}
-                            onClick={() => handleAsk(q)}
-                            className="block w-full text-left text-xs bg-slate-800/40 hover:bg-slate-800 border border-slate-700/40 rounded-lg px-3 py-2 text-slate-300 transition-colors">
-                            {q}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {chatMessages.map((m, i) => (
-                          <div key={i} className={m.role === 'user' ? 'text-right' : ''}>
-                            <div className={`inline-block max-w-[90%] text-xs rounded-lg px-3 py-2 leading-relaxed ${
-                              m.role === 'user' ? 'bg-emerald-700 text-white' : 'bg-slate-800 text-slate-300'
-                            }`}>
-                              {m.text}
-                            </div>
-                          </div>
-                        ))}
-                        {chatLoading && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <Loader2 className="w-3 h-3 animate-spin" /> Thinking…
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="text-xs text-slate-700 pb-2">
-                {data.dataDisclosure?.limitations?.[0]}
-              </div>
-            </>
-          )}
-        </div>
+            <div className="text-xs text-slate-700 pb-2">
+              {data.dataDisclosure?.limitations?.[0]}
+            </div>
+          </>
+        )}
       </div>
+    </aside>
+  );
 
-      {/* Map column */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Map */}
-      <div className="flex-1 relative">
-        <MapContainer center={[selectedLocation.latitude, selectedLocation.longitude]} zoom={15}
-          style={{ height: '100%', width: '100%' }} className="z-0">
+  const mapColumn = (
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 relative min-h-0">
+        <MapContainer
+          center={[selectedLocation.latitude, selectedLocation.longitude]}
+          zoom={15}
+          style={{ height: '100%', width: '100%' }}
+          className="z-0"
+        >
           <RecenterMap center={[selectedLocation.latitude, selectedLocation.longitude]} zoom={15} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -791,8 +488,6 @@ export default function App() {
           </Marker>
         </MapContainer>
 
-        {/* Selected-scenario visualization overlay — only after a real analysis has run.
-            2026 shows the real Street View/satellite photo; 2040/2075 show the AI render. */}
         {analysisState === 'complete' && selectedScenario && (() => {
           const overlaySrc = selectedScenario === '2026'
             ? presentPhotoUrl
@@ -812,17 +507,27 @@ export default function App() {
         })()}
       </div>
 
-      {/* Recommended interventions strip */}
       {analysisState === 'complete' && allRecs.length > 0 && (
-        <div className="shrink-0 border-t border-slate-800 bg-slate-900 px-5 py-3">
-          <div className="text-xs font-medium text-slate-500 mb-2">Recommended Interventions</div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {allRecs.slice(0, 6).map(r => <InterventionCard key={r.id} rec={r} />)}
-          </div>
-        </div>
+        <InterventionsStrip recommendations={allRecs} />
       )}
-      </div>
-      </div>
     </div>
+  );
+
+  return (
+    <AppShell
+      header={(
+        <TopHeader
+          site={data.site}
+          conditions={conditions}
+          aqiInfo={aqiInfo}
+          heatRisk={heatRisk}
+          floodRisk={floodRisk}
+          WeatherIcon={WeatherIcon}
+        />
+      )}
+      sidebar={sidebar}
+    >
+      {mapColumn}
+    </AppShell>
   );
 }

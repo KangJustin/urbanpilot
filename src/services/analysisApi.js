@@ -1,7 +1,13 @@
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Same-origin /api in local dev (proxied by src/setupProxy.js → Express on :3001).
+// Set REACT_APP_API_URL only when deploying the API on a different host.
+const API_BASE = process.env.REACT_APP_API_URL || '';
+
+function apiPath(path) {
+  return `${API_BASE}${path}`;
+}
 
 export async function analyzeNeighborhood(request) {
-  const res = await fetch(`${API_BASE}/api/analyze`, {
+  const res = await fetch(apiPath('/api/analyze'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -11,13 +17,13 @@ export async function analyzeNeighborhood(request) {
 }
 
 export async function getConditions(lat, lon) {
-  const res = await fetch(`${API_BASE}/api/conditions?lat=${lat}&lon=${lon}`);
+  const res = await fetch(apiPath(`/api/conditions?lat=${lat}&lon=${lon}`));
   if (!res.ok) throw new Error(`Conditions API error: ${res.status}`);
   return res.json();
 }
 
 export async function generateVisualization(prompt, referenceImage) {
-  const res = await fetch(`${API_BASE}/api/visualize`, {
+  const res = await fetch(apiPath('/api/visualize'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, referenceImage }),
@@ -30,7 +36,7 @@ export async function generateVisualization(prompt, referenceImage) {
 }
 
 export async function askQuestion(question, site, data) {
-  const res = await fetch(`${API_BASE}/api/ask`, {
+  const res = await fetch(apiPath('/api/ask'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, site, data }),
@@ -43,7 +49,12 @@ export async function askQuestion(question, site, data) {
 }
 
 export async function autocompleteLocation(input, signal) {
-  const res = await fetch(`${API_BASE}/api/location/autocomplete?input=${encodeURIComponent(input)}`, { signal });
+  const res = await fetch(apiPath('/api/location/autocomplete'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: input.trim() }),
+    signal,
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Autocomplete API error: ${res.status}`);
@@ -52,7 +63,7 @@ export async function autocompleteLocation(input, signal) {
 }
 
 export async function getPlaceDetails(placeId) {
-  const res = await fetch(`${API_BASE}/api/location/details?placeId=${encodeURIComponent(placeId)}`);
+  const res = await fetch(apiPath(`/api/location/details?placeId=${encodeURIComponent(placeId)}`));
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Place details API error: ${res.status}`);
@@ -61,7 +72,7 @@ export async function getPlaceDetails(placeId) {
 }
 
 export async function getStreetViewStatus(lat, lon) {
-  const res = await fetch(`${API_BASE}/api/location/street-view-status?lat=${lat}&lon=${lon}`);
+  const res = await fetch(apiPath(`/api/location/street-view-status?lat=${lat}&lon=${lon}`));
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Street View status API error: ${res.status}`);
@@ -72,18 +83,18 @@ export async function getStreetViewStatus(lat, lon) {
 // Direct <img src> URLs (not fetch wrappers) for the real present-day photo, used for the
 // 2026 "now" scenario — displayed only, never sent to Midjourney or any other generator.
 export function streetViewImageUrl(lat, lon, { heading = 0, pitch = 0, fov = 90 } = {}) {
-  return `${API_BASE}/api/location/street-view-image?lat=${lat}&lon=${lon}&heading=${heading}&pitch=${pitch}&fov=${fov}`;
+  return apiPath(`/api/location/street-view-image?lat=${lat}&lon=${lon}&heading=${heading}&pitch=${pitch}&fov=${fov}`);
 }
 
 export function satelliteImageUrl(lat, lon, { zoom = 18 } = {}) {
-  return `${API_BASE}/api/location/satellite-image?lat=${lat}&lon=${lon}&zoom=${zoom}`;
+  return apiPath(`/api/location/satellite-image?lat=${lat}&lon=${lon}&zoom=${zoom}`);
 }
 
 export async function uploadReferenceImage(file, licenseConfirmed) {
   const formData = new FormData();
   formData.append('image', file);
   formData.append('licenseConfirmed', String(licenseConfirmed));
-  const res = await fetch(`${API_BASE}/api/upload/reference-image`, {
+  const res = await fetch(apiPath('/api/upload/reference-image'), {
     method: 'POST',
     body: formData,
   });

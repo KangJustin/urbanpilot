@@ -2,19 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import Leaflet CSS */
 @import 'leaflet/dist/leaflet.css';
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  body {
+    margin: 0;
+    @apply bg-up-navy text-slate-100 font-sans antialiased;
+  }
 }
 
-/* Ensure map container has proper height */
+@layer components {
+  /* Shared panel surfaces — match existing slate palette for visual parity */
+  .up-panel {
+    @apply bg-slate-800/50 border border-slate-700/60 rounded-lg;
+  }
+
+  .up-panel-solid {
+    @apply bg-up-surface border border-up-border rounded-lg;
+  }
+
+  .up-card {
+    @apply rounded-lg border border-slate-700/60 bg-slate-800/30;
+  }
+
+  .up-card-compact {
+    @apply rounded-lg border border-slate-700/60 bg-slate-900 overflow-hidden;
+  }
+
+  .up-label {
+    @apply text-xs text-slate-500;
+  }
+
+  .up-heading {
+    @apply text-sm font-bold text-white tracking-tight;
+  }
+
+  .up-btn-primary {
+    @apply py-2.5 rounded-lg text-sm font-semibold transition-all
+      disabled:opacity-40 disabled:cursor-not-allowed
+      bg-emerald-600 hover:bg-emerald-500 text-white;
+  }
+
+  .up-input {
+    @apply bg-slate-800 border border-slate-700 text-white rounded-lg
+      placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors;
+  }
+
+  .up-live-badge {
+    @apply flex items-center gap-1.5 bg-emerald-900/40 border border-emerald-700/50
+      rounded-full px-2.5 py-1 shrink-0;
+  }
+}
+
 .leaflet-container {
   height: 100%;
   width: 100%;

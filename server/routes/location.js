@@ -9,9 +9,9 @@ const {
 
 const router = Router();
 
-router.get('/location/autocomplete', async (req, res) => {
-  const { input } = req.query;
-  if (!input || !input.trim()) {
+async function handleAutocomplete(req, res) {
+  const input = (req.body?.input ?? req.query?.input ?? '').trim();
+  if (!input) {
     return res.status(400).json({ error: 'input is required' });
   }
   try {
@@ -20,7 +20,10 @@ router.get('/location/autocomplete', async (req, res) => {
   } catch (err) {
     res.status(503).json({ error: err.message });
   }
-});
+}
+
+router.post('/location/autocomplete', handleAutocomplete);
+router.get('/location/autocomplete', handleAutocomplete);
 
 router.get('/location/details', async (req, res) => {
   const { placeId } = req.query;
