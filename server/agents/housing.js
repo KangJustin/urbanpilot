@@ -1,6 +1,7 @@
 const { callAgentRaw } = require('../services/claudeService');
 const { getHousingMetrics } = require('../services/censusService');
 const { parseHousingAgentJson, buildHousingFallback } = require('../services/housingAgentParser');
+const { compactRiskRecSchema, compactKeyValueLine } = require('../services/promptCompression');
 
 const HOUSING_MODEL = 'claude-haiku-4-5-20251001';
 const HOUSING_MAX_TOKENS = 2048;
@@ -16,18 +17,16 @@ No markdown, no code fences, no commentary before or after the JSON.`;
 
 function formatCensusBlock(censusData) {
   if (!censusData) return '';
-  const fmt = (n, prefix = '') => (n == null ? 'N/A' : `${prefix}${n.toLocaleString('en-US')}`);
-  return `
-Verified U.S. Census Bureau ACS data (${censusData.source}) for block group ${censusData.geography?.geoid || 'unknown'}:
-- Population: ${fmt(censusData.population)}
-- Median Household Income: ${fmt(censusData.medianIncome, '$')}
-- Median Gross Rent: ${fmt(censusData.medianRent, '$')}
-- Median Home Value: ${fmt(censusData.medianHomeValue, '$')}
-- Poverty Rate: ${censusData.povertyRate == null ? 'N/A' : `${censusData.povertyRate}%`}
-- Percent Renter Occupied: ${censusData.renterPercent == null ? 'N/A' : `${censusData.renterPercent}%`}
-- Vacancy Rate: ${censusData.vacancyRate == null ? 'N/A' : `${censusData.vacancyRate}%`}
-- Housing Units: ${fmt(censusData.housingUnits)}
-`.trim();
+  return `ACS${censusData.geography?.geoid ? ` bg=${censusData.geography.geoid}` : ''}: ${compactKeyValueLine([
+    ['pop', censusData.population],
+    ['income', censusData.medianIncome != null ? `$${censusData.medianIncome}` : null],
+    ['rent', censusData.medianRent != null ? `$${censusData.medianRent}` : null],
+    ['home', censusData.medianHomeValue != null ? `$${censusData.medianHomeValue}` : null],
+    ['poverty', censusData.povertyRate != null ? `${censusData.povertyRate}%` : null],
+    ['renter', censusData.renterPercent != null ? `${censusData.renterPercent}%` : null],
+    ['vacancy', censusData.vacancyRate != null ? `${censusData.vacancyRate}%` : null],
+    ['units', censusData.housingUnits],
+  ])} (${censusData.source})`;
 }
 
 function buildVerifiedCensusPayload(censusData) {
@@ -60,60 +59,14 @@ function buildCensusDataSchema(censusResult) {
   if (!censusResult.censusAvailable) {
     return 'null';
   }
-  const payload = buildVerifiedCensusPayload(censusResult.censusData);
-  return JSON.stringify(payload, null, 2);
+  return JSON.stringify(buildVerifiedCensusPayload(censusResult.censusData));
 }
 
 function buildResponseSchema(censusResult) {
   const censusDataSchema = buildCensusDataSchema(censusResult);
-  return `{
-  "score": 0,
-  "summary": "string — 2-3 sentences citing verified ACS metrics when available",
-  "findings": [
-    "string — include ACS-sourced metrics where relevant",
-    "string",
-    "string",
-    "string"
-  ],
-  "risks": [
-    {
-      "id": "hr1",
-      "title": "string",
-      "description": "string",
-      "severity": 3,
-      "category": "housing"
-    },
-    {
-      "id": "hr2",
-      "title": "string",
-      "description": "string",
-      "severity": 2,
-      "category": "housing"
-    }
-  ],
-  "recommendations": [
-    {
-      "id": "hrec1",
-      "title": "string",
-      "description": "string",
-      "cost": "high",
-      "timeline": "long_term",
-      "priority": 1,
-      "impact": { "climate": 0, "accessibility": 0, "housing": 0, "equity": 0 }
-    },
-    {
-      "id": "hrec2",
-      "title": "string",
-      "description": "string",
-      "cost": "low",
-      "timeline": "medium_term",
-      "priority": 2,
-      "impact": { "climate": 0, "accessibility": 0, "housing": 0, "equity": 0 }
-    }
-  ],
-  "censusAvailable": ${censusResult.censusAvailable},
-  "censusData": ${censusResult.censusAvailable ? censusDataSchema : 'null'}
-}`;
+  return `{"score":<0-100>,"summary":"<2-3 sentences, cite ACS metrics if available>",`
+    + `${compactRiskRecSchema('h', 'housing')},`
+    + `"censusAvailable":${censusResult.censusAvailable},"censusData":${censusDataSchema}}`;
 }
 
 async function fetchCensusData(site) {
@@ -162,20 +115,11 @@ async function analyzeHousing({ site, goal }) {
 
   const responseSchema = buildResponseSchema(censusResult);
 
-  const prompt = `Analyze housing potential and constraints for this site and planning goal.
-
-Site: ${site.name} (${site.center.latitude}, ${site.center.longitude})
-Planning goal: ${goal.description}
-
-${censusBlock}
-
-Use verified ACS numbers exactly where provided. For zoning context, displacement risk, and recommendations, \
-apply planning expertise but clearly distinguish estimates from verified census figures.
-
-When censusAvailable is true, copy censusData numeric values exactly from the schema below — do not modify them.
-
-Return exactly one JSON object matching this schema (replace placeholder strings and score with your analysis):
-${responseSchema}`;
+  const prompt = `Analyze housing potential/constraints. Site: ${site.name} (${site.center.latitude}, ${site.center.longitude}). `
+    + `Goal: ${goal.description}\n\nVerified data — ${censusBlock}\n\n`
+    + `Cite verified numbers exactly; label non-verified planning analysis as estimates. `
+    + `If censusAvailable, copy censusData values from the schema unchanged.\n\n`
+    + `Return one JSON object, this exact shape, no other text:\n${responseSchema}`;
 
   let rawText;
   try {

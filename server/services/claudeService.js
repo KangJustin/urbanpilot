@@ -1,6 +1,17 @@
 const Anthropic = require('@anthropic-ai/sdk');
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// the-token-company is ESM-only, so it must be loaded via dynamic import() from this
+// CommonJS module; the client is memoized on first use rather than built at require time.
+let clientPromise;
+function getClient() {
+  if (!clientPromise) {
+    clientPromise = import('the-token-company/anthropic').then(({ withCompression }) => withCompression(
+      new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }),
+      { compressionApiKey: process.env.TTC_API_KEY },
+    ));
+  }
+  return clientPromise;
+}
 
 function extractJSON(text) {
   try { return JSON.parse(text.trim()); } catch {}
@@ -12,6 +23,7 @@ function extractJSON(text) {
 }
 
 async function callAgentRaw(systemPrompt, userMessage, model = 'claude-sonnet-4-6', maxTokens) {
+  const client = await getClient();
   const response = await client.messages.create({
     model,
     max_tokens: maxTokens || (model.includes('haiku') ? 1024 : 2048),
@@ -24,6 +36,7 @@ async function callAgentRaw(systemPrompt, userMessage, model = 'claude-sonnet-4-
     ],
     messages: [{ role: 'user', content: userMessage }],
   });
+  console.log(`[claudeService] TTC compression: ${client.compression.totalTokensSaved} tokens saved so far (ratio ${client.compression.ratio.toFixed(2)}x, ${client.compression.calls} calls)`);
 
   const text = response.content[0].text;
   return { text, model, stopReason: response.stop_reason };
@@ -35,6 +48,7 @@ async function callAgent(systemPrompt, userMessage, model = 'claude-sonnet-4-6',
 }
 
 async function callText(systemPrompt, userMessage, model = 'claude-sonnet-4-6', maxTokens = 512) {
+  const client = await getClient();
   const response = await client.messages.create({
     model,
     max_tokens: maxTokens,
@@ -47,6 +61,7 @@ async function callText(systemPrompt, userMessage, model = 'claude-sonnet-4-6', 
     ],
     messages: [{ role: 'user', content: userMessage }],
   });
+  console.log(`[claudeService] TTC compression: ${client.compression.totalTokensSaved} tokens saved so far (ratio ${client.compression.ratio.toFixed(2)}x, ${client.compression.calls} calls)`);
 
   return response.content[0].text.trim();
 }

@@ -1,6 +1,7 @@
 const { callAgentRaw } = require('../services/claudeService');
 const { getTransitMetrics } = require('../services/transit511Service');
 const { parseAccessibilityAgentJson, buildAccessibilityFallback } = require('../services/accessibilityAgentParser');
+const { compactRiskRecSchema, compactKeyValueLine } = require('../services/promptCompression');
 
 const ACCESSIBILITY_MODEL = 'claude-haiku-4-5-20251001';
 const ACCESSIBILITY_MAX_TOKENS = 2048;
@@ -18,18 +19,17 @@ No markdown, no code fences, no commentary before or after the JSON.`;
 function formatTransitBlock(transitData) {
   if (!transitData) return '';
   const hub = transitData.nearestHub?.name
-    ? `${transitData.nearestHub.name} (${transitData.nearestHub.distanceM}m)`
-    : 'none within 800m';
-  return `
-Verified 511 SF Bay Regional GTFS transit metrics (${transitData.source}):
-- Nearby transit stops within 400m: ${transitData.nearbyStops400m}
-- Nearby transit stops within 800m: ${transitData.nearbyStops800m}
-- Unique routes within 800m: ${transitData.uniqueRoutes800m}
-- Operators within 800m: ${(transitData.operators800m || []).join(', ') || 'none'}
-- Transit modes within 800m: ${(transitData.modes800m || []).join(', ') || 'none'}
-- Distance to nearest stop: ${transitData.nearestStopM}m
-- Nearest transit hub (station): ${hub}
-`.trim();
+    ? `${transitData.nearestHub.name}(${transitData.nearestHub.distanceM}m)`
+    : 'none';
+  return `511GTFS: ${compactKeyValueLine([
+    ['stops400', transitData.nearbyStops400m],
+    ['stops800', transitData.nearbyStops800m],
+    ['routes800', transitData.uniqueRoutes800m],
+    ['ops', (transitData.operators800m || []).join(',') || 'none'],
+    ['modes', (transitData.modes800m || []).join(',') || 'none'],
+    ['nearest', transitData.nearestStopM != null ? `${transitData.nearestStopM}m` : null],
+    ['hub', hub],
+  ])} (${transitData.source})`;
 }
 
 function buildVerifiedTransitPayload(transitData) {
@@ -51,59 +51,14 @@ function buildVerifiedTransitPayload(transitData) {
 
 function buildTransitDataSchema(transitResult) {
   if (!transitResult.transitAvailable) return 'null';
-  return JSON.stringify(buildVerifiedTransitPayload(transitResult.transitData), null, 2);
+  return JSON.stringify(buildVerifiedTransitPayload(transitResult.transitData));
 }
 
 function buildResponseSchema(transitResult) {
   const transitDataSchema = buildTransitDataSchema(transitResult);
-  return `{
-  "score": 0,
-  "summary": "string — 2-3 sentences citing verified 511 GTFS metrics when available",
-  "findings": [
-    "string — include verified transit stop counts and modes where relevant",
-    "string",
-    "string",
-    "string"
-  ],
-  "risks": [
-    {
-      "id": "ar1",
-      "title": "string",
-      "description": "string",
-      "severity": 3,
-      "category": "accessibility"
-    },
-    {
-      "id": "ar2",
-      "title": "string",
-      "description": "string",
-      "severity": 2,
-      "category": "accessibility"
-    }
-  ],
-  "recommendations": [
-    {
-      "id": "arec1",
-      "title": "string",
-      "description": "string",
-      "cost": "medium",
-      "timeline": "short_term",
-      "priority": 1,
-      "impact": { "climate": 0, "accessibility": 0, "housing": 0, "equity": 0 }
-    },
-    {
-      "id": "arec2",
-      "title": "string",
-      "description": "string",
-      "cost": "low",
-      "timeline": "short_term",
-      "priority": 2,
-      "impact": { "climate": 0, "accessibility": 0, "housing": 0, "equity": 0 }
-    }
-  ],
-  "transitAvailable": ${transitResult.transitAvailable},
-  "transitData": ${transitResult.transitAvailable ? transitDataSchema : 'null'}
-}`;
+  return `{"score":<0-100>,"summary":"<2-3 sentences, cite verified transit metrics if available>",`
+    + `${compactRiskRecSchema('a', 'accessibility')},`
+    + `"transitAvailable":${transitResult.transitAvailable},"transitData":${transitDataSchema}}`;
 }
 
 async function fetchTransitMetrics(site) {
@@ -157,22 +112,11 @@ async function analyzeAccessibility({ site, goal }) {
 
   const responseSchema = buildResponseSchema(transitResult);
 
-  const prompt = `Analyze accessibility and mobility for this site and planning goal.
-
-Site: ${site.name} (${site.center.latitude}, ${site.center.longitude})
-Planning goal: ${goal.description}
-
-${transitBlock}
-
-Use your knowledge of this specific location, its transit infrastructure, and street network. \
-Do not substitute another city's characteristics unless the site is actually there. \
-Use verified 511 GTFS numbers exactly where provided. For walkability, bike connectivity, pedestrian safety, \
-and ADA barriers, apply planning expertise but clearly distinguish estimates from verified transit figures.
-
-When transitAvailable is true, copy transitData numeric values exactly from the schema below — do not modify them.
-
-Return exactly one JSON object matching this schema (replace placeholder strings and score with your analysis):
-${responseSchema}`;
+  const prompt = `Analyze accessibility/mobility. Site: ${site.name} (${site.center.latitude}, ${site.center.longitude}). `
+    + `Goal: ${goal.description}\n\nVerified data — ${transitBlock}\n\n`
+    + `Cite verified numbers exactly; label walkability/bike/ADA analysis as estimates. `
+    + `If transitAvailable, copy transitData values from the schema unchanged.\n\n`
+    + `Return one JSON object, this exact shape, no other text:\n${responseSchema}`;
 
   let rawText;
   try {

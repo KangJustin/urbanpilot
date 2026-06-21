@@ -3,6 +3,7 @@ const { getOpenMeteoClimateMetrics, SOURCE: OPEN_METEO_SOURCES } = require('../s
 const { getFemaFloodMetrics, SOURCE: FEMA_SOURCE } = require('../services/femaNfhlService');
 const { getNlcdTreeCanopyMetrics, SOURCE: NLCD_SOURCE } = require('../services/nlcdTccService');
 const { parseClimateAgentJson, buildClimateFallback } = require('../services/climateAgentParser');
+const { compactRiskRecSchema, compactKeyValueLine } = require('../services/promptCompression');
 
 const CLIMATE_MODEL = 'claude-haiku-4-5-20251001';
 const CLIMATE_MAX_TOKENS = 2048;
@@ -26,39 +27,36 @@ No markdown, no code fences, no commentary before or after the JSON.`;
 function formatClimateBlock(climateData) {
   if (!climateData) return '';
 
-  const lines = [];
-  const hasOpenMeteo = climateData.temperatureF != null || climateData.usAqi != null;
-  const hasFema = climateData.femaFloodZone != null;
-  const hasNlcd = climateData.treeCanopyPercent != null;
-
-  if (hasOpenMeteo) {
-    const temp = climateData.temperatureF != null
-      ? `${Math.round(climateData.temperatureF)}°F`
-      : 'N/A';
-    lines.push(`Verified Open-Meteo current conditions:`);
-    lines.push(`- Current temperature: ${temp}`);
-    lines.push(`- Weather code: ${climateData.weatherCode ?? 'N/A'} (${climateData.weatherDescription || 'Unknown'})`);
-    lines.push(`- US AQI: ${climateData.usAqi ?? 'N/A'} (${climateData.aqiCategory || 'N/A'})`);
-    if (climateData.observedAt) lines.push(`- Observed at: ${climateData.observedAt}`);
+  const parts = [];
+  if (climateData.temperatureF != null || climateData.usAqi != null) {
+    parts.push(`weather: ${compactKeyValueLine([
+      ['temp', climateData.temperatureF != null ? `${Math.round(climateData.temperatureF)}F` : null],
+      ['code', climateData.weatherCode],
+      ['desc', climateData.weatherDescription],
+      ['aqi', climateData.usAqi],
+      ['cat', climateData.aqiCategory],
+      ['at', climateData.observedAt],
+    ])}`);
   }
 
-  if (hasFema) {
-    lines.push('');
-    lines.push(`Verified FEMA National Flood Hazard Layer (${FEMA_SOURCE}):`);
-    lines.push(`- Flood zone: ${climateData.femaFloodZone}`);
-    lines.push(`- Flood risk: ${climateData.femaFloodRisk}`);
-    lines.push(`- In Special Flood Hazard Area (SFHA): ${climateData.inSpecialFloodHazardArea ? 'Yes' : 'No'}`);
-    lines.push(`- Base flood elevation (ft): ${climateData.baseFloodElevationFt ?? 'N/A'}`);
+  if (climateData.femaFloodZone != null) {
+    parts.push(`fema(${FEMA_SOURCE}): ${compactKeyValueLine([
+      ['zone', climateData.femaFloodZone],
+      ['risk', climateData.femaFloodRisk],
+      ['sfha', climateData.inSpecialFloodHazardArea ? 'yes' : 'no'],
+      ['bfe', climateData.baseFloodElevationFt],
+    ])}`);
   }
 
-  if (hasNlcd) {
-    lines.push('');
-    lines.push(`Verified NLCD Tree Canopy Cover (${NLCD_SOURCE}):`);
-    lines.push(`- Tree canopy: ${climateData.treeCanopyPercent}% (${climateData.treeCanopyYear}, ${climateData.treeCanopyResolutionM}m pixel)`);
-    lines.push('- Note: 30m pixel-level canopy may differ from neighborhood or citywide averages.');
+  if (climateData.treeCanopyPercent != null) {
+    parts.push(`nlcd(${NLCD_SOURCE}): ${compactKeyValueLine([
+      ['canopy', `${climateData.treeCanopyPercent}%`],
+      ['year', climateData.treeCanopyYear],
+      ['res', `${climateData.treeCanopyResolutionM}m`],
+    ])} (30m pixel, may differ from neighborhood avg)`);
   }
 
-  return lines.join('\n').trim();
+  return parts.join('; ');
 }
 
 function buildVerifiedClimatePayload(climateData) {
@@ -93,59 +91,14 @@ function buildVerifiedClimatePayload(climateData) {
 
 function buildClimateDataSchema(climateResult) {
   if (!climateResult.climateAvailable) return 'null';
-  return JSON.stringify(buildVerifiedClimatePayload(climateResult.climateData), null, 2);
+  return JSON.stringify(buildVerifiedClimatePayload(climateResult.climateData));
 }
 
 function buildResponseSchema(climateResult) {
   const climateDataSchema = buildClimateDataSchema(climateResult);
-  return `{
-  "score": 0,
-  "summary": "string — cite verified Open-Meteo, FEMA flood zone, and NLCD tree canopy when available",
-  "findings": [
-    "string — include verified temperature, AQI, FEMA zone, and NLCD treeCanopyPercent where relevant",
-    "string — heat/impervious findings must be labeled as estimates if not verified; note 30m canopy pixel caveat",
-    "string",
-    "string"
-  ],
-  "risks": [
-    {
-      "id": "cr1",
-      "title": "string",
-      "description": "string",
-      "severity": 3,
-      "category": "climate"
-    },
-    {
-      "id": "cr2",
-      "title": "string",
-      "description": "string",
-      "severity": 2,
-      "category": "climate"
-    }
-  ],
-  "recommendations": [
-    {
-      "id": "crec1",
-      "title": "string",
-      "description": "string",
-      "cost": "low",
-      "timeline": "short_term",
-      "priority": 1,
-      "impact": { "climate": 0, "accessibility": 0, "housing": 0, "equity": 0 }
-    },
-    {
-      "id": "crec2",
-      "title": "string",
-      "description": "string",
-      "cost": "medium",
-      "timeline": "medium_term",
-      "priority": 2,
-      "impact": { "climate": 0, "accessibility": 0, "housing": 0, "equity": 0 }
-    }
-  ],
-  "climateAvailable": ${climateResult.climateAvailable},
-  "climateData": ${climateResult.climateAvailable ? climateDataSchema : 'null'}
-}`;
+  return `{"score":<0-100>,"summary":"<2-3 sentences, cite verified metrics if available>",`
+    + `${compactRiskRecSchema('c', 'climate')},`
+    + `"climateAvailable":${climateResult.climateAvailable},"climateData":${climateDataSchema}}`;
 }
 
 function mergeClimateMetrics(openMeteoResult, femaResult, nlcdResult) {
@@ -252,26 +205,11 @@ async function analyzeClimate({ site, goal }) {
 
   const responseSchema = buildResponseSchema(climateResult);
 
-  const prompt = `Analyze climate resilience for this site and planning goal.
-
-Site: ${site.name} (${site.center.latitude}, ${site.center.longitude})
-Planning goal: ${goal.description}
-
-${climateBlock}
-
-Use your knowledge of this specific location and its regional climate conditions. \
-Do not substitute another city's characteristics unless the site is actually there.
-
-Use verified Open-Meteo temperature and US AQI exactly where provided. \
-Use verified FEMA flood zone, flood risk, and SFHA status exactly where provided — do not re-estimate regulatory flood exposure when FEMA data is present. \
-Use verified NLCD treeCanopyPercent exactly where provided — cite the 30m pixel value and note it may differ from neighborhood averages; do not substitute a different canopy estimate. \
-For urban heat island exposure, impervious surface, drought, and long-term greening/adaptation recommendations, \
-apply planning expertise but clearly label those as estimates distinct from verified weather/AQI/FEMA/NLCD data.
-
-When climateAvailable is true, copy climateData values exactly from the schema below — do not modify them.
-
-Return exactly one JSON object matching this schema (replace placeholder strings and score with your analysis):
-${responseSchema}`;
+  const prompt = `Analyze climate resilience. Site: ${site.name} (${site.center.latitude}, ${site.center.longitude}). `
+    + `Goal: ${goal.description}\n\nVerified data — ${climateBlock}\n\n`
+    + `Cite verified numbers exactly; label heat/impervious/drought/greening analysis as estimates. `
+    + `If climateAvailable, copy climateData values from the schema unchanged.\n\n`
+    + `Return one JSON object, this exact shape, no other text:\n${responseSchema}`;
 
   let rawText;
   try {
