@@ -1,6 +1,6 @@
 // Same-origin /api in local dev (proxied by src/setupProxy.js → Express on :3001).
 // Set REACT_APP_API_URL only when deploying the API on a different host.
-const API_BASE = process.env.REACT_APP_API_URL || '';
+const API_BASE = process.env.REACT_APP_API_URL || window.location.origin;
 
 function apiPath(path) {
   return `${API_BASE}${path}`;
@@ -81,7 +81,8 @@ export async function getStreetViewStatus(lat, lon) {
 }
 
 // Direct <img src> URLs (not fetch wrappers) for the real present-day photo, used for the
-// 2026 "now" scenario — displayed only, never sent to Midjourney or any other generator.
+// 2026 "now" scenario display and as the default Midjourney reference image (see App.js
+// handleGenerateVisualization). Must be absolute — Midjourney rejects relative paths.
 export function streetViewImageUrl(lat, lon, { heading = 0, pitch = 0, fov = 90 } = {}) {
   return apiPath(`/api/location/street-view-image?lat=${lat}&lon=${lon}&heading=${heading}&pitch=${pitch}&fov=${fov}`);
 }
