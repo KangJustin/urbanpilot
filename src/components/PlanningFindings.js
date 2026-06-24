@@ -22,7 +22,10 @@ export default function PlanningFindings({ risks, recommendations }) {
             <TabsTrigger value="interventions">Interventions</TabsTrigger>
           </TabsList>
         </CardHeader>
-        <CardContent>
+        {/* Readable max-width — the analysis column is ~59% of the viewport, which on a wide
+            desktop leaves these compact rows (title left, severity/cost/timeline right) with a
+            huge sparse gap in between at full column width. */}
+        <CardContent className="max-w-2xl">
           <TabsContent value="risks">
             <RisksPanel risks={risks} />
           </TabsContent>

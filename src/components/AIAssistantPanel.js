@@ -23,7 +23,7 @@ export default function AIAssistantPanel({ chatMessages, chatInput, setChatInput
       <button
         onClick={() => setOpen(true)}
         aria-label="Ask UrbanPilot AI"
-        className="fixed bottom-5 right-5 z-[2000] flex items-center gap-2 bg-civic-accent hover:bg-civic-accent/90 text-white rounded-full px-4 py-2.5 shadow-civic-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40">
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[2000] flex items-center gap-2 bg-civic-accent hover:bg-civic-accent/90 text-white rounded-full px-4 py-2.5 shadow-civic-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-accent/40">
         <MessageCircle className="w-4 h-4" />
         <span className="text-xs font-semibold">Ask UrbanPilot AI</span>
       </button>
@@ -31,7 +31,7 @@ export default function AIAssistantPanel({ chatMessages, chatInput, setChatInput
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-[2000] w-[340px] max-h-[480px] flex flex-col bg-civic-surface border border-civic-border rounded-xl shadow-civic-sm overflow-hidden">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[2000] w-[calc(100vw-2rem)] sm:w-[340px] max-h-[70vh] sm:max-h-[480px] flex flex-col bg-civic-surface border border-civic-border rounded-xl shadow-civic-sm overflow-hidden">
       <div className="shrink-0 flex items-center justify-between px-3.5 py-2.5 border-b border-civic-border bg-civic-surface-secondary">
         <div className="flex items-center gap-1.5">
           <MessageCircle className="w-3.5 h-3.5 text-civic-accent" />

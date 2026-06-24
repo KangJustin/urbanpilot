@@ -15,13 +15,15 @@ import { fmtNumber, fmtPercent, fmtUsd, fmtTemperatureF, fmtValue } from '../uti
 // the header are a completely separate code path and are never labeled verified here.
 function Metric({ icon: Icon, label, value, status, source }) {
   return (
-    <div className="flex flex-col gap-1 py-2.5 px-3 bg-civic-surface-secondary border border-civic-border rounded-lg min-w-0">
+    <div className="flex flex-col gap-1 py-2 px-2.5 bg-civic-surface-secondary border border-civic-border rounded-lg min-w-0">
       <div className="flex items-center gap-1.5 text-[11px] text-civic-text-muted">
         <Icon className="w-3.5 h-3.5 shrink-0" />
         <span className="truncate">{label}</span>
       </div>
       <div className="text-base font-semibold text-civic-text leading-tight truncate">{value}</div>
-      <ProvenanceChip status={status} source={source} className="w-full whitespace-normal text-left leading-snug" />
+      {/* Badge is inline-flex by default — no `w-full`, so the provenance line hugs its own
+          text instead of stretching edge-to-edge under a short value like "X" or "0%". */}
+      <ProvenanceChip status={status} source={source} className="whitespace-normal leading-snug" />
     </div>
   );
 }
@@ -41,11 +43,11 @@ export default function CurrentConditionsPanel({
   return (
     <Card>
       <CardHeader><CardTitle as="h2">Verified Current Conditions</CardTitle></CardHeader>
-      <CardContent>
-        {/* Two columns, not a viewport-based 3-column breakpoint — this panel always renders
-            inside the right sidebar's fixed-width (300px) column regardless of overall page
-            viewport, so a Tailwind sm:/md: breakpoint here would key off the wrong dimension. */}
-        <div className="grid grid-cols-2 gap-2">
+      <CardContent className="px-4 py-3">
+        {/* 2 columns x 3 rows below lg (this panel's column is full single-column width there,
+            so 2 stays readable); 3 columns x 2 rows at lg+, once the panel has a full ~59% analysis
+            column to itself — shaves a whole row off the panel's height on desktop. */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
           <Metric
             icon={ThermometerSun} label="Temperature"
             value={hasTemp ? fmtTemperatureF(climateData.temperatureF) : 'Not reported'}

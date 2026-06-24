@@ -31,12 +31,15 @@ export default function ScoreBreakdownPanel({ scenarios, years, selectedYear }) 
   const hasData = years.some(y => scenarios?.[y]?.climateScore != null);
 
   return (
-    <Card>
+    <Card className="flex flex-col lg:min-h-[230px]">
       <CardHeader><CardTitle as="h2">Scenario Performance</CardTitle></CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {!hasData ? (
           <p className="text-[11px] text-civic-text-muted italic">Run an analysis to see scenario scores.</p>
         ) : (
+          // Scrolls inside its own container on narrow viewports rather than ever causing
+          // page-level horizontal overflow.
+          <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="text-[10px] text-civic-text-muted">
@@ -88,6 +91,7 @@ export default function ScoreBreakdownPanel({ scenarios, years, selectedYear }) 
               </tr>
             </tbody>
           </table>
+          </div>
         )}
       </CardContent>
     </Card>
